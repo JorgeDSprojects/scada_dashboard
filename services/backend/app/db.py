@@ -12,14 +12,17 @@ def _build_database_url() -> str:
 
     required = ("DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD")
     env_values = {key: os.getenv(key) for key in required}
-    if all(env_values.values()):
-        return (
-            "postgresql+psycopg2://"
-            f"{env_values['DB_USER']}:{env_values['DB_PASSWORD']}"
-            f"@{env_values['DB_HOST']}:{env_values['DB_PORT']}/{env_values['DB_NAME']}"
+    missing = [key for key, value in env_values.items() if not value]
+    if missing:
+        raise RuntimeError(
+            "Missing required PostgreSQL environment variables: " + ", ".join(missing)
         )
 
-    return "sqlite:///./scada.db"
+    return (
+        "postgresql+psycopg2://"
+        f"{env_values['DB_USER']}:{env_values['DB_PASSWORD']}"
+        f"@{env_values['DB_HOST']}:{env_values['DB_PORT']}/{env_values['DB_NAME']}"
+    )
 
 
 DATABASE_URL = _build_database_url()
