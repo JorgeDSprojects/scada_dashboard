@@ -1,16 +1,24 @@
 from datetime import UTC, datetime, timedelta
+import re
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import HistorianSample
 
+_BUCKET_FORMAT_ERROR = (
+    "Invalid bucket. Use format '<positive integer><s|m|h>', e.g. '1m'."
+)
+_BUCKET_PATTERN = re.compile(r"^([1-9][0-9]*)([smh])$")
+
 
 def _parse_bucket(bucket: str) -> timedelta:
-    unit = bucket[-1]
-    amount = int(bucket[:-1])
-    if amount <= 0:
-        raise ValueError("Bucket must be a positive interval")
+    match = _BUCKET_PATTERN.fullmatch(bucket.strip())
+    if match is None:
+        raise ValueError(_BUCKET_FORMAT_ERROR)
+
+    amount = int(match.group(1))
+    unit = match.group(2)
 
     if unit == "s":
         return timedelta(seconds=amount)
@@ -18,7 +26,7 @@ def _parse_bucket(bucket: str) -> timedelta:
         return timedelta(minutes=amount)
     if unit == "h":
         return timedelta(hours=amount)
-    raise ValueError("Unsupported bucket unit")
+    raise ValueError(_BUCKET_FORMAT_ERROR)
 
 
 def _normalize_utc(value: datetime | str) -> datetime:
