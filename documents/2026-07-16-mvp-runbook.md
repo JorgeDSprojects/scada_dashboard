@@ -5,6 +5,17 @@
 - Docker Engine + Docker Compose v2
 - Python 3.12 with `pytest`
 - Node.js 20+
+- Create a local `.env` from `.env.example` and ensure backend DB vars are present:
+
+```bash
+DB_HOST=postgres
+DB_PORT=5432
+DB_NAME=scada
+DB_USER=scada
+DB_PASSWORD=scada
+```
+
+- Keep DB vars aligned with PostgreSQL credentials (`POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`) when customizing values.
 - Root dependencies installed:
 
 ```bash
@@ -24,6 +35,8 @@ Build and start all services in detached mode:
 ```bash
 ./scripts/up.sh --build --detach
 ```
+
+If startup readiness times out, verify `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` in `.env` before retrying.
 
 Check service and HTTP status:
 

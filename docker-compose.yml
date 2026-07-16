@@ -20,6 +20,12 @@ services:
     depends_on:
       - postgres
       - simulator
+    environment:
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-${POSTGRES_DB:-scada}}
+      DB_USER: ${DB_USER:-${POSTGRES_USER:-scada}}
+      DB_PASSWORD: ${DB_PASSWORD:-${POSTGRES_PASSWORD:-scada}}
     networks:
       - backend
 
