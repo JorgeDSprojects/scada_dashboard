@@ -373,3 +373,26 @@ This fix wave addresses the critical and important findings from whole-branch re
 - `npm --prefix services/frontend run test -- src/tests/fixed-view.test.tsx` ✅ (14 passed)
 - `npm --prefix services/frontend run test` ✅ (32 passed)
 - `npm --prefix services/frontend run build` ✅ (built; existing chunk-size warning remains)
+
+## Remaining important finding fix wave (realtime backend concurrency safety)
+
+### 29) Important: backend realtime fanout now uses a single upstream reader
+
+- Reworked `services/backend/app/realtime/manager.py` into a safe fanout architecture:
+  - exactly one background reader task pulls events from simulator (`RealtimeClient.next_event`).
+  - websocket client handlers subscribe through per-task queues.
+  - each upstream event is broadcast to all subscriber queues, so frontend clients do not compete on upstream `recv`.
+- Added lifecycle cleanup in manager:
+  - subscriber queues are removed automatically when websocket task ends.
+  - `aclose()` cancels reader and clears subscribers for deterministic test teardown.
+
+### Backend regression coverage for concurrent recv contention
+
+- Added `services/backend/tests/test_realtime_manager.py`:
+  - `test_manager_fanout_delivers_same_event_to_all_subscribers`
+  - `test_manager_never_performs_concurrent_upstream_recv`
+- These tests validate multi-client fanout and enforce a max of one active upstream `next_event()` call.
+
+### Verification evidence for this wave
+
+- `pytest services/backend/tests -v` ✅ (26 passed)
