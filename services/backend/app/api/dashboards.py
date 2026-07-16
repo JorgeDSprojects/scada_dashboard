@@ -11,6 +11,7 @@ from app.schemas import (
     WidgetCreate,
     WidgetRead,
 )
+from app.validators import validate_widget_configuration
 
 router = APIRouter(tags=["dashboards"])
 
@@ -75,4 +76,14 @@ def create_widget(
     dashboard = dashboards_repo.get_dashboard(db, dashboard_id)
     if dashboard is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dashboard not found")
+
+    try:
+        validate_widget_configuration(
+            dashboard_pipeline=dashboard.pipeline,
+            widget_type=payload.widget_type,
+            settings=payload.settings,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
     return widgets_repo.create_widget(db, dashboard.id, payload)

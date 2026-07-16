@@ -31,8 +31,14 @@ def _create_dashboard(client: TestClient, suffix: str) -> dict[str, object]:
 def _create_widget(client: TestClient, dashboard_id: int, suffix: str) -> dict[str, object]:
     payload = {
         "name": f"Power KPI {suffix}",
-        "widget_type": "line_chart",
-        "settings": {"unit": "kW"},
+        "widget_type": "line",
+        "settings": {
+            "chart_type": "line",
+            "pipeline": "realtime",
+            "signals": ["Gen_RPM"],
+            "colors": ["navy"],
+            "layout": {"x": 0, "y": 0, "w": 4, "h": 6},
+        },
     }
     created = client.post(f"/api/dashboards/{dashboard_id}/widgets", json=payload)
     assert created.status_code == 201
@@ -88,7 +94,7 @@ def test_create_widget_contract():
 
         created_widget = _create_widget(client, int(dashboard["id"]), "create")
         assert created_widget["dashboard_id"] == dashboard["id"]
-        assert created_widget["widget_type"] == "line_chart"
+        assert created_widget["widget_type"] == "line"
 
 
 def test_update_widget_contract():
@@ -98,12 +104,21 @@ def test_update_widget_contract():
 
         updated = client.put(
             f"/api/widgets/{widget['id']}",
-            json={"name": "Power KPI Updated", "settings": {"unit": "MW"}},
+            json={
+                "name": "Power KPI Updated",
+                "settings": {
+                    "chart_type": "line",
+                    "pipeline": "realtime",
+                    "signals": ["Gen_RPM"],
+                    "colors": ["red"],
+                    "layout": {"x": 1, "y": 0, "w": 4, "h": 6},
+                },
+            },
         )
         assert updated.status_code == 200
         body = updated.json()
         assert body["name"] == "Power KPI Updated"
-        assert body["settings"] == {"unit": "MW"}
+        assert body["settings"]["colors"] == ["red"]
 
 
 def test_delete_widget_contract():
@@ -119,3 +134,69 @@ def test_delete_widget_contract():
             json={"name": "Should Not Update"},
         )
         assert updated.status_code == 404
+
+
+def test_create_widget_rejects_invalid_pipeline_chart_type_combination():
+    with TestClient(app) as client:
+        dashboard = _create_dashboard(client, "invalid-chart")
+
+        response = client.post(
+            f"/api/dashboards/{dashboard['id']}/widgets",
+            json={
+                "name": "Invalid widget",
+                "widget_type": "area",
+                "settings": {
+                    "chart_type": "area",
+                    "pipeline": "realtime",
+                    "signals": ["Gen_RPM"],
+                    "colors": ["navy"],
+                },
+            },
+        )
+
+        assert response.status_code == 400
+        assert "Chart type" in response.json()["detail"]
+
+
+def test_create_widget_rejects_invalid_signal_catalog_values():
+    with TestClient(app) as client:
+        dashboard = _create_dashboard(client, "invalid-signal")
+
+        response = client.post(
+            f"/api/dashboards/{dashboard['id']}/widgets",
+            json={
+                "name": "Invalid signal widget",
+                "widget_type": "line",
+                "settings": {
+                    "chart_type": "line",
+                    "pipeline": "realtime",
+                    "signals": ["UnknownSignal"],
+                    "colors": ["red"],
+                },
+            },
+        )
+
+        assert response.status_code == 400
+        assert "Unknown signals" in response.json()["detail"]
+
+
+def test_update_widget_rejects_invalid_signal_count_for_gauge():
+    with TestClient(app) as client:
+        dashboard = _create_dashboard(client, "invalid-gauge-update")
+        widget = _create_widget(client, int(dashboard["id"]), "gauge-update")
+
+        response = client.put(
+            f"/api/widgets/{widget['id']}",
+            json={
+                "widget_type": "gauge",
+                "settings": {
+                    "chart_type": "gauge",
+                    "pipeline": "realtime",
+                    "signals": ["Gen_RPM", "Windspeed"],
+                    "colors": ["navy", "green"],
+                },
+            },
+        )
+
+        assert response.status_code == 400
+        assert "requires exactly one signal" in response.json()["detail"]
