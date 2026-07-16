@@ -278,3 +278,41 @@ This fix wave addresses the critical and important findings from whole-branch re
 ### Verification evidence for this wave
 
 - `npm --prefix services/frontend run test` ✅ (28 passed)
+
+## Final important findings fix wave (remaining items)
+
+### 24) Important: historian is now scoped per fixed-view widget (query + error + range)
+
+- Refactored fixed-view rendering to resolve historian data inside each widget renderer instead of one shared historian request.
+- `services/frontend/src/pages/FixedViewPage.tsx` now mounts one historian hook per historian widget with widget-local:
+  - `signals`
+  - `from` / `to` range
+  - loading/error state
+- Result: one historian widget can fail without contaminating other historian widgets or realtime widgets.
+
+### 25) Important: replaced placeholder list/text rendering with Apache ECharts in fixed view
+
+- Added Apache ECharts frontend dependency in `services/frontend/package.json`.
+- Added reusable chart host component `services/frontend/src/components/widgets/EChartCanvas.tsx`.
+- Replaced list/text-only chart rendering with real ECharts options in:
+  - `services/frontend/src/components/widgets/ChartWidget.tsx`
+  - `services/frontend/src/components/widgets/GaugeWidget.tsx`
+- Implemented MVP chart rendering paths:
+  - `smoothed_line` (line with smoothing)
+  - `stacked_line` (line series with stack)
+  - `large_scale_area` (area line)
+  - `simple_gauge` / `temperature_gauge` (gauge series)
+
+### Test updates for remaining findings
+
+- Extended fixed-view tests in `services/frontend/src/tests/fixed-view.test.tsx` to cover:
+  - per-widget historian fetch scoping (separate API calls/ranges per widget)
+  - per-widget historian failure isolation
+  - ECharts rendering semantics by chart type (line/stack/area/gauge)
+  - timestamp display continuity via widget "Last update" text
+
+### Verification evidence for remaining findings
+
+- `npm --prefix services/frontend run test -- src/tests/fixed-view.test.tsx` ✅ (12 passed)
+- `npm --prefix services/frontend run test` ✅ (29 passed)
+- `npm --prefix services/frontend run build` ✅

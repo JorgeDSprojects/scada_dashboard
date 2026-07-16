@@ -4,6 +4,21 @@ import React from "react";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+const echartsSpies = vi.hoisted(() => ({
+  init: vi.fn(),
+  setOption: vi.fn(),
+  dispose: vi.fn(),
+  resize: vi.fn(),
+}));
+
+vi.mock("echarts", () => ({
+  init: echartsSpies.init.mockImplementation(() => ({
+    setOption: echartsSpies.setOption,
+    dispose: echartsSpies.dispose,
+    resize: echartsSpies.resize,
+  })),
+}));
+
 import { App } from "../App";
 import { FixedViewPage } from "../pages/FixedViewPage";
 
@@ -30,6 +45,22 @@ function sendRealtimeEvent(socket: MockWebSocket, payload: { signal: string; val
       data: JSON.stringify(payload),
     }),
   );
+}
+
+function getLatestChartOption(title: string) {
+  const calls = echartsSpies.setOption.mock.calls.filter((call) => {
+    const option = call[0] as { title?: { text?: string } };
+    return option.title?.text === title;
+  });
+
+  if (calls.length === 0) {
+    return null;
+  }
+
+  return calls[calls.length - 1][0] as {
+    series?: Array<Record<string, unknown>>;
+    xAxis?: { type?: string };
+  };
 }
 
 function buildDashboardPayload(dashboardId: number) {
@@ -204,6 +235,54 @@ function buildDashboardPayload(dashboardId: number) {
     };
   }
 
+  if (dashboardId === 6) {
+    return {
+      id: dashboardId,
+      name: "Historian per-widget scope",
+      description: "Each historian widget should query and fail independently",
+      pipeline: "historian",
+      status: "published",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      widgets: [
+        {
+          id: 61,
+          dashboard_id: dashboardId,
+          name: "Historian Healthy",
+          widget_type: "large_scale_area",
+          settings: {
+            chart_type: "large_scale_area",
+            pipeline: "historian",
+            signals: ["Hist_Good"],
+            range: {
+              from: "2026-07-12T00:00:00Z",
+              to: "2026-07-12T00:30:00Z",
+            },
+          },
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        },
+        {
+          id: 62,
+          dashboard_id: dashboardId,
+          name: "Historian Faulty Scoped",
+          widget_type: "large_scale_area",
+          settings: {
+            chart_type: "large_scale_area",
+            pipeline: "historian",
+            signals: ["Hist_Bad"],
+            range: {
+              from: "2026-07-12T01:00:00Z",
+              to: "2026-07-12T01:20:00Z",
+            },
+          },
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        },
+      ],
+    };
+  }
+
   return {
     id: dashboardId,
     name: "Published dashboard",
@@ -262,6 +341,10 @@ function buildDashboardPayload(dashboardId: number) {
 
 beforeEach(() => {
   MockWebSocket.instances = [];
+  echartsSpies.init.mockClear();
+  echartsSpies.setOption.mockClear();
+  echartsSpies.dispose.mockClear();
+  echartsSpies.resize.mockClear();
   vi.stubGlobal("WebSocket", MockWebSocket);
   vi.stubGlobal(
     "fetch",
@@ -303,6 +386,23 @@ beforeEach(() => {
             }),
             { status: 200, headers: { "Content-Type": "application/json" } },
           );
+        }
+
+        if (url.includes("Hist_Good")) {
+          return new Response(
+            JSON.stringify({
+              series: [{ signal: "Hist_Good", value: 510.4, ts_utc: "2026-07-12T00:10:00Z" }],
+              bucket: "1m",
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+
+        if (url.includes("Hist_Bad")) {
+          return new Response(JSON.stringify({ detail: "historian scoped failure" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          });
         }
 
         return new Response(
@@ -400,7 +500,7 @@ it("renders timestamps in local browser time for historian widgets", async () =>
   render(<FixedViewPage dashboardId={1} />);
 
   const expectedLocal = new Date("2026-07-12T00:15:00Z").toLocaleString();
-  expect(await screen.findByText((content) => content.includes(expectedLocal))).toBeInTheDocument();
+  expect(await screen.findByText((content) => content.includes(`Last update: ${expectedLocal}`))).toBeInTheDocument();
   expect(screen.queryByText(/2026-07-12T00:15:00Z/)).not.toBeInTheDocument();
 });
 
@@ -424,10 +524,78 @@ it("keeps realtime points inside the last 15 minutes based on timestamps", async
   sendRealtimeEvent(socket, { signal: "Gen_Power", value: 120, ts_utc: "2026-07-12T00:20:00Z" });
 
   await waitFor(() => {
-    expect(screen.queryByText(/Gen_Power: 104/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Gen_Power: 106/)).toBeInTheDocument();
-    expect(screen.getByText(/Gen_Power: 107/)).toBeInTheDocument();
+    const option = getLatestChartOption("Realtime Power");
+    expect(option).not.toBeNull();
+
+    const dataPoints = ((option?.series?.[0].data as Array<{ value: [string, number] }>) ?? []).map(
+      (entry) => entry.value[1],
+    );
+
+    expect(dataPoints).not.toContain(104);
+    expect(dataPoints).toContain(106);
+    expect(dataPoints).toContain(107);
   });
+});
+
+it("queries historian series per widget and scopes failures to the matching widget", async () => {
+  const fetchCalls: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      fetchCalls.push(url);
+
+      if (url.includes("/api/dashboards/")) {
+        return new Response(JSON.stringify(buildDashboardPayload(6)), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      if (url.includes("signals=Hist_Good")) {
+        return new Response(
+          JSON.stringify({
+            series: [{ signal: "Hist_Good", value: 516.8, ts_utc: "2026-07-12T00:12:00Z" }],
+            bucket: "1m",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      if (url.includes("signals=Hist_Bad")) {
+        return new Response(JSON.stringify({ detail: "historian scoped failure" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ detail: "not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }),
+  );
+
+  render(<FixedViewPage dashboardId={6} />);
+
+  const healthyWidget = (await screen.findByRole("heading", { name: /historian healthy/i })).closest(
+    "article",
+  ) as HTMLElement;
+  const faultyWidget = screen.getByRole("heading", { name: /historian faulty scoped/i }).closest(
+    "article",
+  ) as HTMLElement;
+
+  await within(faultyWidget).findByRole("alert");
+
+  const historianFetches = fetchCalls.filter((url) => url.includes("/api/historian/series"));
+  expect(historianFetches).toHaveLength(2);
+  expect(historianFetches.some((url) => url.includes("signals=Hist_Good"))).toBe(true);
+  expect(historianFetches.some((url) => url.includes("signals=Hist_Bad"))).toBe(true);
+  expect(historianFetches.some((url) => url.includes("from=2026-07-12T00%3A00%3A00.000Z"))).toBe(true);
+  expect(historianFetches.some((url) => url.includes("from=2026-07-12T01%3A00%3A00.000Z"))).toBe(true);
+
+  expect(within(healthyWidget).queryByRole("alert")).not.toBeInTheDocument();
+  expect(within(faultyWidget).getByRole("alert")).toHaveTextContent(/request failed with status 500/i);
 });
 
 it("converts historian datetime-local range values to UTC before requesting series", async () => {
@@ -515,11 +683,16 @@ it("renders distinct semantics for all five chart types in fixed view", async ()
   sendRealtimeEvent(socket, { signal: "Gen_RPM", value: 1225, ts_utc: "2026-07-12T00:10:00Z" });
   sendRealtimeEvent(socket, { signal: "Temp_C", value: 72, ts_utc: "2026-07-12T00:10:00Z" });
 
-  expect(await screen.findByText(/mode: smoothed line/i)).toBeInTheDocument();
-  expect(screen.getByText(/mode: stacked line/i)).toBeInTheDocument();
-  expect(screen.getByText(/mode: simple gauge/i)).toBeInTheDocument();
-  expect(screen.getByText(/mode: temperature gauge/i)).toBeInTheDocument();
-  expect(screen.getByText(/mode: large scale area/i)).toBeInTheDocument();
+  await waitFor(() => {
+    expect(getLatestChartOption("Smoothed line")?.series?.[0].type).toBe("line");
+    expect(getLatestChartOption("Smoothed line")?.series?.[0].smooth).toBe(true);
+    expect(getLatestChartOption("Stacked line")?.series?.every((series) => series.stack === "total")).toBe(
+      true,
+    );
+    expect(getLatestChartOption("Large scale area")?.series?.[0].areaStyle).toBeTruthy();
+    expect(getLatestChartOption("Simple gauge")?.series?.[0].type).toBe("gauge");
+    expect(getLatestChartOption("Temperature gauge")?.series?.[0].type).toBe("gauge");
+  });
 });
 
 it("renders fixed route in app for /dashboards/:id", async () => {

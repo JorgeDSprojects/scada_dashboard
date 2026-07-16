@@ -5,6 +5,7 @@ import { buildApiUrl } from "../api/client";
 import { ChartWidget } from "../components/widgets/ChartWidget";
 import { GaugeWidget } from "../components/widgets/GaugeWidget";
 import { useHistorianSeries } from "../hooks/useHistorianSeries";
+import type { RealtimeConnectionStatus, RealtimeEvent } from "../hooks/useRealtimeStream";
 import { useRealtimeStream } from "../hooks/useRealtimeStream";
 import { normalizeChartType } from "../types/chart-types";
 import type { Dashboard, DashboardPipeline, Widget } from "../types/dashboard";
@@ -29,9 +30,75 @@ type DashboardWithWidgets = Dashboard & {
   widgets?: Widget[];
 };
 
+type ParsedWidget = {
+  widget: Widget;
+  settings: WidgetSettings;
+};
+
 const DEFAULT_FROM = "2026-07-12T00:00:00Z";
 const DEFAULT_TO = "2026-07-12T01:00:00Z";
 const DEFAULT_BUCKET = "1m";
+
+type FixedWidgetRendererProps = {
+  parsedWidget: ParsedWidget;
+  realtimeEvents: RealtimeEvent[];
+  realtimeStatus: RealtimeConnectionStatus;
+};
+
+function FixedWidgetRenderer({ parsedWidget, realtimeEvents, realtimeStatus }: FixedWidgetRendererProps) {
+  const { widget, settings } = parsedWidget;
+  const relatedRealtime = React.useMemo(
+    () => realtimeEvents.filter((event) => settings.signals.includes(event.signal)),
+    [realtimeEvents, settings.signals],
+  );
+
+  const historianRange = settings.range ?? { from: DEFAULT_FROM, to: DEFAULT_TO };
+  const historianEnabled = settings.pipeline === "historian" && settings.signals.length > 0;
+
+  const {
+    series: historianSeries,
+    loading: loadingHistorian,
+    error: historianError,
+  } = useHistorianSeries({
+    enabled: historianEnabled,
+    signals: settings.signals,
+    from: historianRange.from,
+    to: historianRange.to,
+    bucket: DEFAULT_BUCKET,
+  });
+
+  const values = settings.pipeline === "historian" ? historianSeries : relatedRealtime;
+  const latestValue = values.length > 0 ? values[values.length - 1].value : null;
+  const latestTimestamp = values.length > 0 ? values[values.length - 1].ts_utc : null;
+  const connectionStatus = settings.pipeline === "realtime" ? realtimeStatus : undefined;
+  const widgetError = settings.pipeline === "historian" ? historianError : null;
+  const loading = settings.pipeline === "historian" ? loadingHistorian : false;
+
+  if (settings.chartType === "simple_gauge" || settings.chartType === "temperature_gauge") {
+    return (
+      <GaugeWidget
+        title={widget.name}
+        chartType={settings.chartType}
+        value={latestValue}
+        connectionStatus={connectionStatus}
+        error={widgetError}
+        loading={loading}
+      />
+    );
+  }
+
+  return (
+    <ChartWidget
+      title={widget.name}
+      chartType={settings.chartType}
+      points={values}
+      connectionStatus={connectionStatus}
+      error={widgetError}
+      loading={loading}
+      lastTimestamp={latestTimestamp}
+    />
+  );
+}
 
 function normalizeDashboardId(value: number | undefined): number | null {
   if (typeof value !== "number" || Number.isNaN(value) || value <= 0) {
@@ -118,7 +185,7 @@ export function FixedViewPage({ dashboardId }: FixedViewPageProps) {
 
   const parsedWidgets = React.useMemo(() => {
     if (!dashboard) {
-      return [] as Array<{ widget: Widget; settings: WidgetSettings }>;
+      return [] as ParsedWidget[];
     }
 
     const fallbackPipeline = dashboard.pipeline;
@@ -135,35 +202,6 @@ export function FixedViewPage({ dashboardId }: FixedViewPageProps) {
 
   const realtimeDashboardId = resolvedDashboardId !== null && hasRealtimeWidgets ? resolvedDashboardId : null;
   const { status: realtimeStatus, events: realtimeEvents } = useRealtimeStream(realtimeDashboardId);
-
-  const historianSignals = React.useMemo(() => {
-    const uniqueSignals = new Set<string>();
-
-    parsedWidgets.forEach(({ settings }) => {
-      if (settings.pipeline === "historian") {
-        settings.signals.forEach((signal) => uniqueSignals.add(signal));
-      }
-    });
-
-    return Array.from(uniqueSignals);
-  }, [parsedWidgets]);
-
-  const historianRange = React.useMemo(() => {
-    const candidate = parsedWidgets.find(({ settings }) => settings.pipeline === "historian" && settings.range);
-    if (!candidate || !candidate.settings.range) {
-      return { from: DEFAULT_FROM, to: DEFAULT_TO };
-    }
-
-    return candidate.settings.range;
-  }, [parsedWidgets]);
-
-  const { series: historianSeries, loading: loadingHistorian, error: historianError } = useHistorianSeries({
-    enabled: isPublished && historianSignals.length > 0,
-    signals: historianSignals,
-    from: historianRange.from,
-    to: historianRange.to,
-    bucket: DEFAULT_BUCKET,
-  });
 
   if (loadingDashboard) {
     return (
@@ -208,39 +246,15 @@ export function FixedViewPage({ dashboardId }: FixedViewPageProps) {
       <p>{dashboard.name}</p>
       {hasRealtimeWidgets ? <p>{`Realtime status: ${realtimeStatus}`}</p> : null}
 
-      {loadingHistorian ? <p>Loading historian data...</p> : null}
-
       <div>
         {parsedWidgets.length === 0 && !loadingDashboard ? <p>No widgets available.</p> : null}
         {parsedWidgets.map(({ widget, settings }) => {
-          const relatedRealtime = realtimeEvents.filter((event) => settings.signals.includes(event.signal));
-          const relatedHistorian = historianSeries.filter((entry) => settings.signals.includes(entry.signal));
-          const values = settings.pipeline === "historian" ? relatedHistorian : relatedRealtime;
-          const latestValue = values.length > 0 ? values[values.length - 1].value : null;
-          const connectionStatus = settings.pipeline === "realtime" ? realtimeStatus : undefined;
-          const widgetError = settings.pipeline === "historian" ? historianError : null;
-
-          if (settings.chartType === "simple_gauge" || settings.chartType === "temperature_gauge") {
-            return (
-              <GaugeWidget
-                key={widget.id}
-                title={widget.name}
-                chartType={settings.chartType}
-                value={latestValue}
-                connectionStatus={connectionStatus}
-                error={widgetError}
-              />
-            );
-          }
-
           return (
-            <ChartWidget
+            <FixedWidgetRenderer
               key={widget.id}
-              title={widget.name}
-              chartType={settings.chartType}
-              points={values}
-              connectionStatus={connectionStatus}
-              error={widgetError}
+              parsedWidget={{ widget, settings }}
+              realtimeEvents={realtimeEvents}
+              realtimeStatus={realtimeStatus}
             />
           );
         })}

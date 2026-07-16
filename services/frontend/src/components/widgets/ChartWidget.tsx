@@ -1,5 +1,7 @@
 import React from "react";
+import type { EChartsOption } from "echarts";
 
+import { EChartCanvas } from "./EChartCanvas";
 import type { RealtimeConnectionStatus } from "../../hooks/useRealtimeStream";
 
 type ChartPoint = {
@@ -14,6 +16,8 @@ type ChartWidgetProps = {
   points: ChartPoint[];
   connectionStatus?: RealtimeConnectionStatus;
   error?: string | null;
+  loading?: boolean;
+  lastTimestamp?: string | null;
 };
 
 function formatLocalTimestamp(tsUtc: string): string {
@@ -25,92 +29,83 @@ function formatLocalTimestamp(tsUtc: string): string {
   return parsed.toLocaleString();
 }
 
-export function ChartWidget({ title, chartType, points, connectionStatus, error }: ChartWidgetProps) {
-  const modeLabel =
-    chartType === "smoothed_line"
-      ? "Smoothed line"
-      : chartType === "stacked_line"
-        ? "Stacked line"
-        : chartType === "large_scale_area"
-          ? "Large scale area"
-          : "Series";
+function buildLineOption(title: string, chartType: string, points: ChartPoint[]): EChartsOption {
+  const sortedPoints = [...points].sort(
+    (left, right) => new Date(left.ts_utc).getTime() - new Date(right.ts_utc).getTime(),
+  );
 
-  const sortedPoints = [...points].sort((left, right) => {
-    return new Date(left.ts_utc).getTime() - new Date(right.ts_utc).getTime();
+  const pointsBySignal = sortedPoints.reduce((accumulator, point) => {
+    const signalPoints = accumulator.get(point.signal) ?? [];
+    signalPoints.push({ value: [point.ts_utc, point.value] });
+    accumulator.set(point.signal, signalPoints);
+    return accumulator;
+  }, new Map<string, Array<{ value: [string, number] }>>());
+
+  const series = Array.from(pointsBySignal.entries()).map(([signal, signalPoints]) => {
+    const lineSeries: Record<string, unknown> = {
+      name: signal,
+      type: "line",
+      data: signalPoints,
+      showSymbol: false,
+      emphasis: { focus: "series" },
+    };
+
+    if (chartType === "smoothed_line") {
+      lineSeries.smooth = true;
+    }
+
+    if (chartType === "stacked_line") {
+      lineSeries.stack = "total";
+    }
+
+    if (chartType === "large_scale_area") {
+      lineSeries.areaStyle = { opacity: 0.25 };
+      lineSeries.smooth = true;
+    }
+
+    return lineSeries;
   });
 
-  const smoothedPoints = sortedPoints.map((point, index) => {
-    const windowStart = Math.max(0, index - 2);
-    const samples = sortedPoints.slice(windowStart, index + 1);
-    const average = samples.reduce((accumulator, sample) => accumulator + sample.value, 0) / samples.length;
-    return { point, average };
-  });
+  return {
+    title: { text: title, left: "center", textStyle: { fontSize: 14 } },
+    tooltip: {
+      trigger: "axis",
+      valueFormatter: (value: number | string) =>
+        typeof value === "number" ? value.toFixed(2) : String(value),
+    },
+    legend: { top: 24 },
+    grid: { left: 50, right: 20, top: 60, bottom: 35 },
+    xAxis: {
+      type: "time",
+    },
+    yAxis: {
+      type: "value",
+    },
+    series,
+  };
+}
 
-  const stackedPoints = Array.from(
-    sortedPoints.reduce((accumulator, point) => {
-      const key = point.ts_utc;
-      const current = accumulator.get(key) ?? { total: 0, signals: 0, ts_utc: point.ts_utc };
-      current.total += point.value;
-      current.signals += 1;
-      accumulator.set(key, current);
-      return accumulator;
-    }, new Map<string, { total: number; signals: number; ts_utc: string }>()),
-  ).map(([, value]) => value);
-
-  const areaSummary =
-    sortedPoints.length > 0
-      ? {
-          min: Math.min(...sortedPoints.map((point) => point.value)),
-          max: Math.max(...sortedPoints.map((point) => point.value)),
-          avg: sortedPoints.reduce((accumulator, point) => accumulator + point.value, 0) / sortedPoints.length,
-        }
-      : null;
+export function ChartWidget({
+  title,
+  chartType,
+  points,
+  connectionStatus,
+  error,
+  loading = false,
+  lastTimestamp = null,
+}: ChartWidgetProps) {
+  const chartOption = React.useMemo(() => buildLineOption(title, chartType, points), [title, chartType, points]);
+  const localTimestamp = lastTimestamp ? formatLocalTimestamp(lastTimestamp) : null;
 
   return (
     <article>
       <h3>{title}</h3>
-      <p>{`Mode: ${modeLabel}`}</p>
       {connectionStatus ? <p>{`Connection: ${connectionStatus}`}</p> : null}
-      {error ? (
-        <p role="alert">{error}</p>
-      ) : points.length === 0 ? (
-        <p>No points available.</p>
-      ) : chartType === "stacked_line" ? (
-        <ul aria-label={`${title} stacked points`}>
-          {stackedPoints.map((point, index) => (
-            <li key={`${point.ts_utc}-${index}`}>{`Stack total: ${point.total.toFixed(2)} from ${point.signals} signals (${formatLocalTimestamp(point.ts_utc)})`}</li>
-          ))}
-        </ul>
-      ) : chartType === "large_scale_area" ? (
-        <>
-          {areaSummary ? (
-            <p>{`Area summary - min: ${areaSummary.min.toFixed(2)}, max: ${areaSummary.max.toFixed(2)}, avg: ${areaSummary.avg.toFixed(2)}`}</p>
-          ) : null}
-          <ul aria-label={`${title} area points`}>
-            {sortedPoints.map((point, index) => (
-              <li key={`${point.signal}-${point.ts_utc}-${index}`}>
-                {`${point.signal}: ${point.value} (${formatLocalTimestamp(point.ts_utc)})`}
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : chartType === "smoothed_line" ? (
-        <ul aria-label={`${title} smoothed points`}>
-          {smoothedPoints.map(({ point, average }, index) => (
-            <li key={`${point.signal}-${point.ts_utc}-${index}`}>
-              {`${point.signal}: ${point.value} (smoothed ${average.toFixed(2)}) (${formatLocalTimestamp(point.ts_utc)})`}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <ul aria-label={`${title} points`}>
-          {sortedPoints.map((point, index) => (
-            <li key={`${point.signal}-${point.ts_utc}-${index}`}>
-              {`${point.signal}: ${point.value} (${formatLocalTimestamp(point.ts_utc)})`}
-            </li>
-          ))}
-        </ul>
-      )}
+      <EChartCanvas option={chartOption} />
+      {loading ? <p>Loading historian data...</p> : null}
+      {error ? <p role="alert">{error}</p> : null}
+      {!error && !loading && points.length === 0 ? <p>No points available.</p> : null}
+      {!error && localTimestamp ? <p>{`Last update: ${localTimestamp}`}</p> : null}
     </article>
   );
 }
