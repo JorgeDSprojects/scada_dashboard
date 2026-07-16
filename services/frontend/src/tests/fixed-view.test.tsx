@@ -44,6 +44,8 @@ beforeEach(() => {
             description: "Read-only dashboard",
             pipeline: "realtime",
             status,
+            created_at: "2026-01-01T00:00:00Z",
+            updated_at: "2026-01-01T00:00:00Z",
             widgets: [
               {
                 id: 11,
@@ -55,25 +57,29 @@ beforeEach(() => {
                   pipeline: "realtime",
                   signals: ["Gen_RPM"],
                 },
+                created_at: "2026-01-01T00:00:00Z",
+                updated_at: "2026-01-01T00:00:00Z",
               },
               {
                 id: 13,
                 dashboard_id: dashboardId,
                 name: "Realtime Power",
-                widget_type: "line",
+                widget_type: "smoothed_line",
                 settings: {
-                  chart_type: "line",
+                  chart_type: "smoothed_line",
                   pipeline: "realtime",
                   signals: ["Gen_Power"],
                 },
+                created_at: "2026-01-01T00:00:00Z",
+                updated_at: "2026-01-01T00:00:00Z",
               },
               {
                 id: 12,
                 dashboard_id: dashboardId,
                 name: "Historian RPM",
-                widget_type: "line",
+                widget_type: "large_scale_area",
                 settings: {
-                  chart_type: "line",
+                  chart_type: "large_scale_area",
                   pipeline: "historian",
                   signals: ["Gen_RPM"],
                   range: {
@@ -81,6 +87,8 @@ beforeEach(() => {
                     to: "2026-07-12T01:00:00Z",
                   },
                 },
+                created_at: "2026-01-01T00:00:00Z",
+                updated_at: "2026-01-01T00:00:00Z",
               },
             ],
           }),

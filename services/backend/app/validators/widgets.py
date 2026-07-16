@@ -2,13 +2,19 @@ from collections.abc import Sequence
 
 from app.historian.seed import list_signal_names
 
-REALTIME_CHART_TYPES = {"line", "smoothed_line", "stacked_line", "gauge", "temperature_gauge"}
-HISTORIAN_CHART_TYPES = {"area", "large_scale_area"}
-GAUGE_CHART_TYPES = {"gauge", "temperature_gauge"}
+REALTIME_CHART_TYPES = {"smoothed_line", "stacked_line", "simple_gauge", "temperature_gauge"}
+HISTORIAN_CHART_TYPES = {"large_scale_area"}
+GAUGE_CHART_TYPES = {"simple_gauge", "temperature_gauge"}
+CHART_TYPE_ALIASES = {
+    "line": "smoothed_line",
+    "gauge": "simple_gauge",
+    "area": "large_scale_area",
+}
 
 
 def _normalize_chart_type(value: str) -> str:
-    return value.strip().lower().replace(" ", "_").replace("-", "_")
+    normalized = value.strip().lower().replace(" ", "_").replace("-", "_")
+    return CHART_TYPE_ALIASES.get(normalized, normalized)
 
 
 def _extract_pipeline(settings: dict[str, object], dashboard_pipeline: str) -> str:

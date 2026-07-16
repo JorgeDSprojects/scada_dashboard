@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -22,6 +23,8 @@ class WidgetUpdate(BaseModel):
 class WidgetRead(WidgetBase):
     id: int
     dashboard_id: int
+    created_at: datetime
+    updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -46,6 +49,8 @@ class DashboardUpdate(BaseModel):
 
 class DashboardRead(DashboardBase):
     id: int
+    created_at: datetime
+    updated_at: datetime
     widgets: list[WidgetRead] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)

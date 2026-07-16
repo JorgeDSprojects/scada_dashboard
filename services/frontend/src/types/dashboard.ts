@@ -8,6 +8,8 @@ export type Dashboard = {
   description: string;
   pipeline: DashboardPipeline;
   status: DashboardStatus;
+  created_at: string;
+  updated_at: string;
 };
 
 export type WidgetLayout = {
@@ -23,4 +25,6 @@ export type Widget = {
   name: string;
   widget_type: string;
   settings: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
 };

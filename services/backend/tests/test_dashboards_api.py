@@ -1,6 +1,7 @@
 import os
 import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -12,6 +13,7 @@ if str(SERVICE_ROOT) not in sys.path:
 
 DB_FILE = Path(tempfile.gettempdir()) / f"scada_backend_test_{uuid4().hex}.db"
 os.environ["DATABASE_URL"] = f"sqlite:///{DB_FILE.as_posix()}"
+os.environ.setdefault("HISTORIAN_MIN_SAMPLE_SECONDS", "300")
 
 from app.main import app
 
@@ -25,15 +27,18 @@ def _create_dashboard(client: TestClient, suffix: str) -> dict[str, object]:
     }
     created = client.post("/api/dashboards", json=payload)
     assert created.status_code == 201
-    return created.json()
+    body = created.json()
+    assert "created_at" in body
+    assert "updated_at" in body
+    return body
 
 
 def _create_widget(client: TestClient, dashboard_id: int, suffix: str) -> dict[str, object]:
     payload = {
         "name": f"Power KPI {suffix}",
-        "widget_type": "line",
+        "widget_type": "smoothed_line",
         "settings": {
-            "chart_type": "line",
+            "chart_type": "smoothed_line",
             "pipeline": "realtime",
             "signals": ["Gen_RPM"],
             "colors": ["navy"],
@@ -42,7 +47,10 @@ def _create_widget(client: TestClient, dashboard_id: int, suffix: str) -> dict[s
     }
     created = client.post(f"/api/dashboards/{dashboard_id}/widgets", json=payload)
     assert created.status_code == 201
-    return created.json()
+    body = created.json()
+    assert "created_at" in body
+    assert "updated_at" in body
+    return body
 
 
 def test_create_and_list_dashboard():
@@ -75,6 +83,9 @@ def test_update_dashboard_contract():
         body = updated.json()
         assert body["name"] == "Wind Turbine Updated"
         assert body["status"] == "published"
+        assert datetime.fromisoformat(body["updated_at"].replace("Z", "+00:00")) >= datetime.fromisoformat(
+            dashboard["updated_at"].replace("Z", "+00:00")
+        )
 
 
 def test_delete_dashboard_contract():
@@ -94,7 +105,7 @@ def test_create_widget_contract():
 
         created_widget = _create_widget(client, int(dashboard["id"]), "create")
         assert created_widget["dashboard_id"] == dashboard["id"]
-        assert created_widget["widget_type"] == "line"
+        assert created_widget["widget_type"] == "smoothed_line"
 
 
 def test_update_widget_contract():
@@ -107,7 +118,7 @@ def test_update_widget_contract():
             json={
                 "name": "Power KPI Updated",
                 "settings": {
-                    "chart_type": "line",
+                    "chart_type": "smoothed_line",
                     "pipeline": "realtime",
                     "signals": ["Gen_RPM"],
                     "colors": ["red"],
@@ -173,7 +184,7 @@ def test_create_widget_rejects_invalid_pipeline_chart_type_combination():
                 "name": "Invalid widget",
                 "widget_type": "area",
                 "settings": {
-                    "chart_type": "area",
+                    "chart_type": "large_scale_area",
                     "pipeline": "realtime",
                     "signals": ["Gen_RPM"],
                     "colors": ["navy"],
@@ -227,3 +238,24 @@ def test_update_widget_rejects_invalid_signal_count_for_gauge():
 
         assert response.status_code == 400
         assert "requires exactly one signal" in response.json()["detail"]
+
+
+def test_create_widget_accepts_legacy_chart_type_aliases_for_compatibility():
+    with TestClient(app) as client:
+        dashboard = _create_dashboard(client, "legacy-alias")
+
+        response = client.post(
+            f"/api/dashboards/{dashboard['id']}/widgets",
+            json={
+                "name": "Legacy alias widget",
+                "widget_type": "line",
+                "settings": {
+                    "chart_type": "line",
+                    "pipeline": "realtime",
+                    "signals": ["Gen_RPM"],
+                    "colors": ["red"],
+                },
+            },
+        )
+
+        assert response.status_code == 201

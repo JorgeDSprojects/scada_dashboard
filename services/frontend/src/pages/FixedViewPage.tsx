@@ -6,6 +6,7 @@ import { ChartWidget } from "../components/widgets/ChartWidget";
 import { GaugeWidget } from "../components/widgets/GaugeWidget";
 import { useHistorianSeries } from "../hooks/useHistorianSeries";
 import { useRealtimeStream } from "../hooks/useRealtimeStream";
+import { normalizeChartType } from "../types/chart-types";
 import type { Dashboard, DashboardPipeline, Widget } from "../types/dashboard";
 
 type FixedViewPageProps = {
@@ -57,7 +58,7 @@ function parseWidgetSettings(widget: Widget, fallbackPipeline: DashboardPipeline
   }
 
   return {
-    chartType: typeof raw.chart_type === "string" ? raw.chart_type : widget.widget_type,
+    chartType: normalizeChartType(typeof raw.chart_type === "string" ? raw.chart_type : widget.widget_type),
     pipeline,
     signals,
     range,
@@ -215,7 +216,7 @@ export function FixedViewPage({ dashboardId }: FixedViewPageProps) {
           const latestValue = values.length > 0 ? values[values.length - 1].value : null;
           const connectionStatus = settings.pipeline === "realtime" ? realtimeStatus : undefined;
 
-          if (settings.chartType === "gauge" || settings.chartType === "temperature_gauge") {
+          if (settings.chartType === "simple_gauge" || settings.chartType === "temperature_gauge") {
             return (
               <GaugeWidget
                 key={widget.id}

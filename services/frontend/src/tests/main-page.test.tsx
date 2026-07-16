@@ -21,6 +21,8 @@ const dashboardsFixture = [
     description: "Main turbine dashboard",
     pipeline: "realtime" as const,
     status: "draft" as const,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
   },
   {
     id: 2,
@@ -28,6 +30,8 @@ const dashboardsFixture = [
     description: "Historical trends",
     pipeline: "historian" as const,
     status: "published" as const,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
   },
 ];
 
@@ -40,6 +44,8 @@ beforeEach(() => {
     description: "",
     pipeline: "realtime",
     status: "draft",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
   });
 });
 

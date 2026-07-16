@@ -10,6 +10,7 @@ import {
 } from "../api/client";
 import { WidgetForm, type WidgetLaunchPayload } from "../components/editor/WidgetForm";
 import { WidgetGrid, type WidgetGridItem } from "../components/editor/WidgetGrid";
+import { normalizeChartType } from "../types/chart-types";
 import type { DashboardPipeline, DashboardStatus, Widget, WidgetLayout } from "../types/dashboard";
 
 type EditorPageProps = {
@@ -51,7 +52,8 @@ function mapWidgetToGridItem(widget: Widget, fallbackPipeline: DashboardPipeline
   const settings = (widget.settings ?? {}) as Record<string, unknown>;
   const signals = parseStringArray(settings.signals);
   const colors = parseStringArray(settings.colors);
-  const chartType = typeof settings.chart_type === "string" ? settings.chart_type : widget.widget_type;
+  const rawChartType = typeof settings.chart_type === "string" ? settings.chart_type : widget.widget_type;
+  const chartType = normalizeChartType(rawChartType);
   const pipeline = settings.pipeline === "historian" || settings.pipeline === "realtime"
     ? settings.pipeline
     : fallbackPipeline;
@@ -142,11 +144,12 @@ export function EditorPage({ dashboardId }: EditorPageProps) {
 
     try {
       const newLayout = buildDefaultLayout(widgets.length);
+      const chartType = normalizeChartType(payload.chartType);
       const created = await createWidget(resolvedDashboardId, {
         name,
-        widget_type: payload.chartType,
+        widget_type: chartType,
         settings: {
-          chart_type: payload.chartType,
+          chart_type: chartType,
           description,
           pipeline,
           signals: payload.signals.map((entry) => entry.signal),
@@ -163,7 +166,7 @@ export function EditorPage({ dashboardId }: EditorPageProps) {
         {
           id: created.id,
           name: created.name,
-          chartType: payload.chartType,
+          chartType,
           pipeline,
           signals: payload.signals.map((entry) => `${entry.signal} (${entry.color})`),
           layout: parseLayout(createdSettings.layout, newLayout),

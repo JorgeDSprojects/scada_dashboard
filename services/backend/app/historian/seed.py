@@ -86,12 +86,13 @@ def _seed_range() -> tuple[datetime, datetime]:
 
 
 def _sample_interval_seconds(signal: dict[str, Any], session: Session) -> float:
-    default_floor = "60"
-    if session.bind is not None and session.bind.dialect.name == "sqlite":
-        default_floor = "300"
+    frequency_seconds = float(signal["frequency_seconds"])
+    configured_floor = os.getenv("HISTORIAN_MIN_SAMPLE_SECONDS")
+    if configured_floor is None:
+        return frequency_seconds
 
-    minimum_sample_seconds = float(os.getenv("HISTORIAN_MIN_SAMPLE_SECONDS", default_floor))
-    return max(float(signal["frequency_seconds"]), minimum_sample_seconds)
+    minimum_sample_seconds = float(configured_floor)
+    return max(frequency_seconds, minimum_sample_seconds)
 
 
 def seed_all_signals(session: Session) -> None:

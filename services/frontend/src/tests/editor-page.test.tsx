@@ -31,19 +31,23 @@ beforeEach(() => {
     description: "Existing description",
     pipeline: "realtime",
     status: "draft",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
     widgets: [
       {
         id: 41,
         dashboard_id: 7,
         name: "Existing widget",
-        widget_type: "line",
+        widget_type: "smoothed_line",
         settings: {
-          chart_type: "line",
+          chart_type: "smoothed_line",
           pipeline: "realtime",
           signals: ["Gen_RPM"],
           colors: ["navy"],
           layout: { x: 0, y: 0, w: 4, h: 6 },
         },
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
       },
     ],
   });
@@ -51,8 +55,10 @@ beforeEach(() => {
     id: 101,
     dashboard_id: 7,
     name: "New dashboard",
-    widget_type: "line",
+    widget_type: "smoothed_line",
     settings: {},
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
   });
   vi.mocked(updateDashboard).mockResolvedValue({
     id: 7,
@@ -60,19 +66,23 @@ beforeEach(() => {
     description: "",
     pipeline: "realtime",
     status: "draft",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:01Z",
   });
   vi.mocked(updateWidget).mockResolvedValue({
     id: 41,
     dashboard_id: 7,
     name: "Existing widget",
-    widget_type: "line",
+    widget_type: "smoothed_line",
     settings: {
-      chart_type: "line",
+      chart_type: "smoothed_line",
       pipeline: "realtime",
       signals: ["Gen_RPM"],
       colors: ["navy"],
       layout: { x: 1, y: 0, w: 4, h: 6 },
     },
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:01Z",
   });
   vi.mocked(deleteWidget).mockResolvedValue();
 });
@@ -98,6 +108,22 @@ it("shows historian from/to controls when pipeline is historian", async () => {
 
   expect(screen.getByLabelText(/from/i)).toBeInTheDocument();
   expect(screen.getByLabelText(/to/i)).toBeInTheDocument();
+});
+
+it("shows spec chart type names in editor selector", () => {
+  render(<EditorPage />);
+
+  const chartTypeSelect = screen.getByLabelText(/chart_type/i);
+  const chartTypeOptions = Array.from(chartTypeSelect.querySelectorAll("option")).map(
+    (option) => option.textContent,
+  );
+
+  expect(chartTypeOptions).toEqual([
+    "smoothed_line",
+    "stacked_line",
+    "simple_gauge",
+    "temperature_gauge",
+  ]);
 });
 
 it("shows the full six-signal catalog in the signal selector", async () => {
@@ -126,7 +152,7 @@ it("launches widget and displays it in the widget grid", async () => {
   const nameInput = screen.getByLabelText(/name/i);
   await userEvent.clear(nameInput);
   await userEvent.type(nameInput, "Generator dashboard");
-  await userEvent.selectOptions(screen.getByLabelText(/chart_type/i), "line");
+  await userEvent.selectOptions(screen.getByLabelText(/chart_type/i), "smoothed_line");
   await userEvent.selectOptions(screen.getByLabelText(/signal/i), "Gen_RPM");
   await userEvent.selectOptions(screen.getByLabelText(/color/i), "navy");
   await userEvent.click(screen.getByRole("button", { name: /add/i }));
@@ -136,11 +162,11 @@ it("launches widget and displays it in the widget grid", async () => {
     7,
     expect.objectContaining({
       name: "Generator dashboard",
-      widget_type: "line",
+      widget_type: "smoothed_line",
     }),
   );
   expect(await screen.findByText(/Widget launched/i)).toBeInTheDocument();
-  expect(screen.getAllByText(/line - realtime - Gen_RPM \(navy\)/i).length).toBeGreaterThan(0);
+  expect(screen.getAllByText(/smoothed_line - realtime - Gen_RPM \(navy\)/i).length).toBeGreaterThan(0);
 });
 
 it("loads existing dashboard metadata and widgets", async () => {

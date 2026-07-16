@@ -1,5 +1,6 @@
 import React from "react";
 
+import { CHART_TYPE_OPTIONS } from "../../types/chart-types";
 import type { DashboardPipeline } from "../../types/dashboard";
 import { RangePicker } from "./RangePicker";
 import { SignalSelector } from "./SignalSelector";
@@ -28,11 +29,6 @@ type WidgetFormProps = {
   onDescriptionChange: (value: string) => void;
   onPipelineChange: (value: DashboardPipeline) => void;
   onLaunchWidget: (payload: WidgetLaunchPayload) => void;
-};
-
-const CHART_TYPE_OPTIONS: Record<DashboardPipeline, string[]> = {
-  realtime: ["line", "stacked_line", "gauge", "temperature_gauge"],
-  historian: ["area"],
 };
 
 function defaultChartType(pipeline: DashboardPipeline): string {

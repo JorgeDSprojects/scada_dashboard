@@ -13,6 +13,7 @@ if str(SERVICE_ROOT) not in sys.path:
 
 DB_FILE = Path(tempfile.gettempdir()) / f"scada_backend_test_{uuid4().hex}.db"
 os.environ["DATABASE_URL"] = f"sqlite:///{DB_FILE.as_posix()}"
+os.environ.setdefault("HISTORIAN_MIN_SAMPLE_SECONDS", "300")
 
 import app.main as main_module
 
