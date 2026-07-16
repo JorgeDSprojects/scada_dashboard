@@ -314,6 +314,53 @@ function buildDashboardPayload(dashboardId: number) {
     };
   }
 
+  if (dashboardId === 8) {
+    return {
+      id: dashboardId,
+      name: "Historian mixed range validity",
+      description: "Missing range must stay widget-scoped and never fallback",
+      pipeline: "historian",
+      status: "published",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      widgets: [
+        {
+          id: 81,
+          dashboard_id: dashboardId,
+          name: "Historian Missing To",
+          widget_type: "large_scale_area",
+          settings: {
+            chart_type: "large_scale_area",
+            pipeline: "historian",
+            signals: ["Hist_NoRange"],
+            range: {
+              from: "2026-07-12T00:00:00Z",
+            },
+          },
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        },
+        {
+          id: 82,
+          dashboard_id: dashboardId,
+          name: "Historian Healthy Range",
+          widget_type: "large_scale_area",
+          settings: {
+            chart_type: "large_scale_area",
+            pipeline: "historian",
+            signals: ["Hist_Good"],
+            range: {
+              from: "2026-07-12T00:00:00Z",
+              to: "2026-07-12T00:30:00Z",
+            },
+          },
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        },
+      ],
+    };
+  }
+
   return {
     id: dashboardId,
     name: "Published dashboard",
@@ -729,8 +776,57 @@ it("does not query historian series when widget range from/to is empty", async (
   ) as HTMLElement;
   const alert = await within(widget).findByRole("alert");
 
-  expect(alert).toHaveTextContent(/historian range requires both from and to values/i);
+  expect(alert).toHaveTextContent(/edit this widget and set both from and to values/i);
   expect(fetchCalls.some((url) => url.includes("/api/historian/series"))).toBe(false);
+});
+
+it("keeps historian range-missing errors widget-scoped and does not fallback to default range", async () => {
+  const fetchCalls: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      fetchCalls.push(url);
+
+      if (url.includes("/api/dashboards/")) {
+        return new Response(JSON.stringify(buildDashboardPayload(8)), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      if (url.includes("/api/historian/series") && url.includes("Hist_Good")) {
+        return new Response(
+          JSON.stringify({
+            series: [{ signal: "Hist_Good", value: 510.4, ts_utc: "2026-07-12T00:10:00Z" }],
+            bucket: "1m",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      return new Response(JSON.stringify({ detail: "not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }),
+  );
+
+  render(<FixedViewPage dashboardId={8} />);
+
+  const missingRangeWidget = (await screen.findByRole("heading", { name: /historian missing to/i })).closest(
+    "article",
+  ) as HTMLElement;
+  const missingRangeAlert = await within(missingRangeWidget).findByRole("alert");
+  expect(missingRangeAlert).toHaveTextContent(/edit this widget and set both from and to values/i);
+
+  expect(await screen.findByRole("heading", { name: /historian healthy range/i })).toBeInTheDocument();
+  expect(screen.queryByText(/request failed with status/i)).not.toBeInTheDocument();
+
+  const historianFetches = fetchCalls.filter((url) => url.includes("/api/historian/series"));
+  expect(historianFetches).toHaveLength(1);
+  expect(historianFetches[0]).toContain("signals=Hist_Good");
+  expect(historianFetches[0]).not.toContain("Hist_NoRange");
 });
 
 it("renders distinct semantics for all five chart types in fixed view", async () => {

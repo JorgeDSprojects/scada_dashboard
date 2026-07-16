@@ -347,3 +347,29 @@ This fix wave addresses the critical and important findings from whole-branch re
 
 - `npm --prefix services/frontend run test` ✅ (31 passed)
 - `pytest services/backend/tests services/simulator/tests tests/repo -v` ✅ (30 passed)
+
+## Remaining important finding fix wave (hardcoded historian fallback removal)
+
+### 28) Important: fixed view no longer uses hardcoded historian fallback range
+
+- Removed hardcoded fixed-view historian fallback timestamps in `services/frontend/src/pages/FixedViewPage.tsx`.
+- Historian widgets now validate range locally per widget:
+  - when `from`/`to` is missing or blank, widget-level historian fetch is disabled.
+  - widget now shows explicit actionable error: `Historian range is missing. Edit this widget and set both from and to values.`
+- Preserved per-widget historian scoping behavior:
+  - valid historian widgets still query independently.
+  - invalid historian widgets do not trigger API requests and do not contaminate sibling widgets.
+
+### Frontend test updates
+
+- Updated `services/frontend/src/tests/fixed-view.test.tsx` empty-range assertion to require actionable edit guidance.
+- Added regression test for mixed historian widgets (one missing range, one valid) to verify:
+  - missing-range widget shows local error only.
+  - exactly one historian API request is emitted for the valid widget.
+  - no fallback/default range request is made for the invalid widget.
+
+### Verification evidence for this wave
+
+- `npm --prefix services/frontend run test -- src/tests/fixed-view.test.tsx` ✅ (14 passed)
+- `npm --prefix services/frontend run test` ✅ (32 passed)
+- `npm --prefix services/frontend run build` ✅ (built; existing chunk-size warning remains)

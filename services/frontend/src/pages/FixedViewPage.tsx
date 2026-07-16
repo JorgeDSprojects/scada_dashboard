@@ -35,9 +35,8 @@ type ParsedWidget = {
   settings: WidgetSettings;
 };
 
-const DEFAULT_FROM = "2026-07-12T00:00:00Z";
-const DEFAULT_TO = "2026-07-12T01:00:00Z";
 const DEFAULT_BUCKET = "1m";
+const MISSING_HISTORIAN_RANGE_ERROR = "Historian range is missing. Edit this widget and set both from and to values.";
 
 type FixedWidgetRendererProps = {
   parsedWidget: ParsedWidget;
@@ -52,8 +51,16 @@ function FixedWidgetRenderer({ parsedWidget, realtimeEvents, realtimeStatus }: F
     [realtimeEvents, settings.signals],
   );
 
-  const historianRange = settings.range ?? { from: DEFAULT_FROM, to: DEFAULT_TO };
-  const historianEnabled = settings.pipeline === "historian" && settings.signals.length > 0;
+  const hasHistorianRange =
+    settings.range !== null && settings.range.from.trim().length > 0 && settings.range.to.trim().length > 0;
+  const historianRangeError =
+    settings.pipeline === "historian" && settings.signals.length > 0 && !hasHistorianRange
+      ? MISSING_HISTORIAN_RANGE_ERROR
+      : null;
+  const historianEnabled =
+    settings.pipeline === "historian" && settings.signals.length > 0 && historianRangeError === null;
+  const historianFrom = hasHistorianRange ? settings.range.from : "";
+  const historianTo = hasHistorianRange ? settings.range.to : "";
 
   const {
     series: historianSeries,
@@ -62,8 +69,8 @@ function FixedWidgetRenderer({ parsedWidget, realtimeEvents, realtimeStatus }: F
   } = useHistorianSeries({
     enabled: historianEnabled,
     signals: settings.signals,
-    from: historianRange.from,
-    to: historianRange.to,
+    from: historianFrom,
+    to: historianTo,
     bucket: DEFAULT_BUCKET,
   });
 
@@ -71,7 +78,7 @@ function FixedWidgetRenderer({ parsedWidget, realtimeEvents, realtimeStatus }: F
   const latestValue = values.length > 0 ? values[values.length - 1].value : null;
   const latestTimestamp = values.length > 0 ? values[values.length - 1].ts_utc : null;
   const connectionStatus = settings.pipeline === "realtime" ? realtimeStatus : undefined;
-  const widgetError = settings.pipeline === "historian" ? historianError : null;
+  const widgetError = settings.pipeline === "historian" ? historianRangeError ?? historianError : null;
   const loading = settings.pipeline === "historian" ? loadingHistorian : false;
 
   if (settings.chartType === "simple_gauge" || settings.chartType === "temperature_gauge") {
