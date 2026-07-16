@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-scada}
+      POSTGRES_USER: ${POSTGRES_USER:-scada}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scada}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  simulator:
+    build: ./services/simulator
+    networks:
+      - backend
+
+  backend:
+    build: ./services/backend
+    depends_on:
+      - postgres
+      - simulator
+    networks:
+      - backend
+
+  frontend:
+    build: ./services/frontend
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  postgres_data:
