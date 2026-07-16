@@ -1,10 +1,10 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
-from app.generator import SignalGenerator
-from app.ws_server import stream_loop
+from simulator_app.generator import SignalGenerator
+from simulator_app.ws_server import stream_loop
 
 app = FastAPI(title="SCADA Simulator")
-generator = SignalGenerator.from_file("app/config/signals.json")
+generator = SignalGenerator.from_file("simulator_app/config/signals.json")
 
 
 @app.get("/health")

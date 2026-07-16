@@ -10,6 +10,9 @@ export type RealtimeEvent = {
   ts_utc: string;
 };
 
+const BASE_RECONNECT_DELAY_MS = 1000;
+const MAX_RECONNECT_DELAY_MS = 30000;
+
 function parseEvent(payload: unknown): RealtimeEvent | null {
   if (typeof payload !== "object" || payload === null) {
     return null;
@@ -48,6 +51,7 @@ export function useRealtimeStream(dashboardId: number | null) {
     let retryTimer: number | undefined;
     let socket: WebSocket | undefined;
     let active = true;
+    let reconnectAttempt = 0;
 
     const connect = () => {
       if (!active) {
@@ -57,6 +61,7 @@ export function useRealtimeStream(dashboardId: number | null) {
       socket = new WebSocket(buildWebSocketUrl(`/ws/realtime?dashboard_id=${dashboardId}`));
       socket.onopen = () => {
         if (active) {
+          reconnectAttempt = 0;
           setStatus("connected");
         }
       };
@@ -80,7 +85,9 @@ export function useRealtimeStream(dashboardId: number | null) {
         }
 
         setStatus("reconnecting");
-        retryTimer = window.setTimeout(connect, 1000);
+        const retryDelay = Math.min(BASE_RECONNECT_DELAY_MS * 2 ** reconnectAttempt, MAX_RECONNECT_DELAY_MS);
+        reconnectAttempt += 1;
+        retryTimer = window.setTimeout(connect, retryDelay);
       };
       socket.onerror = () => {
         if (active) {

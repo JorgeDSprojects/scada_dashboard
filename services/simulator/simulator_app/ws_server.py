@@ -1,7 +1,7 @@
 import asyncio
 from datetime import datetime, timezone
 
-from app.generator import SignalGenerator
+from simulator_app.generator import SignalGenerator
 
 
 def utc_timestamp() -> str:
