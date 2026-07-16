@@ -4,21 +4,13 @@ test("dashboard lifecycle smoke", async ({ page }) => {
   const baseUrl = process.env.SCADA_BASE_URL ?? "http://localhost:5173";
   const dashboardName = `Smoke Dashboard ${Date.now()}`;
 
-  const createResponse = await page.request.post(`${baseUrl}/api/dashboards`, {
-    data: {
-      name: dashboardName,
-      description: "Smoke test dashboard",
-      pipeline: "realtime",
-      status: "draft",
-    },
-  });
-  expect(createResponse.ok()).toBeTruthy();
-
-  const created = (await createResponse.json()) as { id: number };
-  const dashboardId = created.id;
-
-  await page.goto(`${baseUrl}/editor/${dashboardId}`);
+  await page.goto(`${baseUrl}/`);
+  await page.getByRole("button", { name: "New dashboard" }).click();
   await expect(page.getByRole("heading", { name: /dashboard editor/i })).toBeVisible();
+
+  const urlAfterCreate = page.url();
+  const dashboardId = Number(urlAfterCreate.split("/").pop());
+  expect(Number.isNaN(dashboardId)).toBeFalsy();
 
   await page.getByLabel("name").fill(dashboardName);
   await page.getByLabel("signal").selectOption("Gen_RPM");
@@ -34,7 +26,7 @@ test("dashboard lifecycle smoke", async ({ page }) => {
 
   await page.goto(`${baseUrl}/`);
   await page.getByRole("link", { name: `Open ${dashboardName}` }).click();
-  await expect(page).toHaveURL(new RegExp(`/fixed/${dashboardId}$`));
+  await expect(page).toHaveURL(new RegExp(`/dashboards/${dashboardId}$`));
   await expect(page.getByRole("heading", { name: /fixed dashboard/i })).toBeVisible();
 
   await page.goto(`${baseUrl}/`);

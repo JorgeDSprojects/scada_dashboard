@@ -215,7 +215,7 @@ export function FixedViewPage({ dashboardId }: FixedViewPageProps) {
           const latestValue = values.length > 0 ? values[values.length - 1].value : null;
           const connectionStatus = settings.pipeline === "realtime" ? realtimeStatus : undefined;
 
-          if (settings.chartType === "gauge") {
+          if (settings.chartType === "gauge" || settings.chartType === "temperature_gauge") {
             return (
               <GaugeWidget
                 key={widget.id}

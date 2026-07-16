@@ -11,6 +11,7 @@ export function App() {
       <Routes>
         <Route path="/" element={<MainPage />} />
         <Route path="/editor/:id" element={<EditorRoutePage />} />
+        <Route path="/dashboards/:id" element={<FixedViewRoutePage />} />
         <Route path="/fixed/:id" element={<FixedViewRoutePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

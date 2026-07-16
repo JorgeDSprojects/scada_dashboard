@@ -9,6 +9,11 @@ export default defineConfig({
         target: API_PROXY_TARGET,
         changeOrigin: true,
       },
+      "/ws": {
+        target: API_PROXY_TARGET,
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
 });

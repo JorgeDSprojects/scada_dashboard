@@ -10,6 +10,13 @@ export type Dashboard = {
   status: DashboardStatus;
 };
 
+export type WidgetLayout = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+
 export type Widget = {
   id: number;
   dashboard_id: number;

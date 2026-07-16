@@ -1,10 +1,19 @@
 import React from "react";
 
-import { deleteDashboard, listDashboards } from "../api/client";
+import { createDashboard, deleteDashboard, listDashboards } from "../api/client";
 import type { Dashboard } from "../types/dashboard";
 
 function getOpenPath(dashboard: Dashboard): string {
-  return dashboard.status === "published" ? `/fixed/${dashboard.id}` : `/editor/${dashboard.id}`;
+  return dashboard.status === "published" ? `/dashboards/${dashboard.id}` : `/editor/${dashboard.id}`;
+}
+
+function navigateToPath(path: string): void {
+  try {
+    window.history.pushState({}, "", path);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  } catch {
+    window.location.assign(path);
+  }
 }
 
 export function MainPage() {
@@ -55,9 +64,33 @@ export function MainPage() {
     }
   };
 
+  const handleCreateDashboard = async () => {
+    try {
+      const created = await createDashboard({
+        name: "New dashboard",
+        description: "",
+        pipeline: "realtime",
+        status: "draft",
+      });
+
+      setError(null);
+      navigateToPath(`/editor/${created.id}`);
+    } catch {
+      setError("Unable to create dashboard.");
+    }
+  };
+
   return (
     <section>
       <h1>Dashboards</h1>
+      <button
+        type="button"
+        onClick={() => {
+          void handleCreateDashboard();
+        }}
+      >
+        New dashboard
+      </button>
       {error ? <p role="alert">{error}</p> : null}
       <table>
         <thead>

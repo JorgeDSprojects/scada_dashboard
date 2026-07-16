@@ -159,7 +159,23 @@ it("shows publish warning and hides data for non-published dashboards", async ()
   expect(MockWebSocket.instances).toHaveLength(0);
 });
 
-it("renders fixed route in app for /fixed/:id", async () => {
+it("renders timestamps in local browser time for historian widgets", async () => {
+  render(<FixedViewPage dashboardId={1} />);
+
+  const expectedLocal = new Date("2026-07-12T00:15:00Z").toLocaleString();
+  expect(await screen.findByText((content) => content.includes(expectedLocal))).toBeInTheDocument();
+  expect(screen.queryByText(/2026-07-12T00:15:00Z/)).not.toBeInTheDocument();
+});
+
+it("renders fixed route in app for /dashboards/:id", async () => {
+  window.history.pushState({}, "Fixed", "/dashboards/1");
+
+  render(<App />);
+
+  expect(await screen.findByRole("heading", { name: /fixed dashboard/i })).toBeInTheDocument();
+});
+
+it("keeps /fixed/:id route for backwards compatibility", async () => {
   window.history.pushState({}, "Fixed", "/fixed/1");
 
   render(<App />);

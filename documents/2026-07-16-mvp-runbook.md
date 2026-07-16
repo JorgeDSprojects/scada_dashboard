@@ -82,8 +82,8 @@ npx playwright test tests/e2e/scada-smoke.spec.ts
 
 The smoke test validates this full lifecycle:
 
-1. Create dashboard
+1. Create dashboard from the main page (`New dashboard` button)
 2. Add widget from editor
 3. Publish dashboard
-4. Open fixed view
+4. Open fixed view (`/dashboards/:id`; legacy `/fixed/:id` remains compatible)
 5. Delete dashboard from main list

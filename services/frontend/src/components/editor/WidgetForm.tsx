@@ -30,6 +30,15 @@ type WidgetFormProps = {
   onLaunchWidget: (payload: WidgetLaunchPayload) => void;
 };
 
+const CHART_TYPE_OPTIONS: Record<DashboardPipeline, string[]> = {
+  realtime: ["line", "stacked_line", "gauge", "temperature_gauge"],
+  historian: ["area"],
+};
+
+function defaultChartType(pipeline: DashboardPipeline): string {
+  return CHART_TYPE_OPTIONS[pipeline][0];
+}
+
 export function WidgetForm({
   name,
   description,
@@ -39,10 +48,16 @@ export function WidgetForm({
   onPipelineChange,
   onLaunchWidget,
 }: WidgetFormProps) {
-  const [chartType, setChartType] = React.useState("line");
+  const [chartType, setChartType] = React.useState(defaultChartType(pipeline));
   const [signals, setSignals] = React.useState<SignalEntry[]>([]);
   const [from, setFrom] = React.useState("");
   const [to, setTo] = React.useState("");
+
+  React.useEffect(() => {
+    if (!CHART_TYPE_OPTIONS[pipeline].includes(chartType)) {
+      setChartType(defaultChartType(pipeline));
+    }
+  }, [chartType, pipeline]);
 
   const handleAddSignal = (signal: string, color: string) => {
     setSignals((previous) => [...previous, { signal, color }]);
@@ -95,10 +110,11 @@ export function WidgetForm({
           setChartType(event.target.value);
         }}
       >
-        <option value="line">line</option>
-        <option value="area">area</option>
-        <option value="bar">bar</option>
-        <option value="gauge">gauge</option>
+        {CHART_TYPE_OPTIONS[pipeline].map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
       </select>
 
       <SignalSelector onAdd={handleAddSignal} />

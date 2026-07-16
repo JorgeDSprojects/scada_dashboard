@@ -14,6 +14,15 @@ type ChartWidgetProps = {
   connectionStatus?: RealtimeConnectionStatus;
 };
 
+function formatLocalTimestamp(tsUtc: string): string {
+  const parsed = new Date(tsUtc);
+  if (Number.isNaN(parsed.getTime())) {
+    return tsUtc;
+  }
+
+  return parsed.toLocaleString();
+}
+
 export function ChartWidget({ title, points, connectionStatus }: ChartWidgetProps) {
   return (
     <article>
@@ -24,7 +33,9 @@ export function ChartWidget({ title, points, connectionStatus }: ChartWidgetProp
       ) : (
         <ul aria-label={`${title} points`}>
           {points.slice(-5).map((point, index) => (
-            <li key={`${point.signal}-${point.ts_utc}-${index}`}>{`${point.signal}: ${point.value} (${point.ts_utc})`}</li>
+            <li key={`${point.signal}-${point.ts_utc}-${index}`}>
+              {`${point.signal}: ${point.value} (${formatLocalTimestamp(point.ts_utc)})`}
+            </li>
           ))}
         </ul>
       )}
