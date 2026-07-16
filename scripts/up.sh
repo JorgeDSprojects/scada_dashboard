@@ -56,5 +56,6 @@ echo "[up] Starting stack: ${cmd[*]}"
 "${cmd[@]}"
 
 if [[ "$detach" == "true" ]]; then
-  ./scripts/status.sh
+  status_timeout="${UP_STATUS_TIMEOUT_SECONDS:-90}"
+  ./scripts/status.sh --wait --timeout "$status_timeout"
 fi

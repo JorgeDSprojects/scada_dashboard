@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../playwright-fixtures";
 
 test("dashboard lifecycle smoke", async ({ page }) => {
   const baseUrl = process.env.SCADA_BASE_URL ?? "http://localhost:5173";

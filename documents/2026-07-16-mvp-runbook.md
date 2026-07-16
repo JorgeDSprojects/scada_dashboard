@@ -5,10 +5,16 @@
 - Docker Engine + Docker Compose v2
 - Python 3.12 with `pytest`
 - Node.js 20+
-- Playwright browsers installed for the e2e workspace:
+- Root dependencies installed:
 
 ```bash
-npx --prefix tests/e2e playwright install chromium
+npm install
+```
+
+- Playwright browsers installed:
+
+```bash
+npx playwright install chromium
 ```
 
 ## 2) Start stack
@@ -56,7 +62,7 @@ npm --prefix services/frontend run test
 Run e2e smoke test:
 
 ```bash
-npx --prefix tests/e2e playwright test --config tests/e2e/playwright.config.ts tests/e2e/scada-smoke.spec.ts
+npx playwright test tests/e2e/scada-smoke.spec.ts
 ```
 
 ## 5) Smoke scenario validated by e2e
