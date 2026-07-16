@@ -5,7 +5,12 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+RUN addgroup --system app && adduser --system --ingroup app app
+
 COPY app ./app
+RUN chown -R app:app /app
+
+USER app
 
 EXPOSE 8000
 

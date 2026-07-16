@@ -142,6 +142,20 @@ export function EditorPage({ dashboardId }: EditorPageProps) {
       return;
     }
 
+    const normalizedRange =
+      pipeline === "historian" && payload.range
+        ? {
+            from: payload.range.from.trim(),
+            to: payload.range.to.trim(),
+          }
+        : null;
+
+    if (pipeline === "historian" && (!normalizedRange?.from || !normalizedRange?.to)) {
+      setError("Historian widgets require both from and to range values.");
+      setStatusMessage(null);
+      return;
+    }
+
     try {
       const newLayout = buildDefaultLayout(widgets.length);
       const chartType = normalizeChartType(payload.chartType);
@@ -154,7 +168,7 @@ export function EditorPage({ dashboardId }: EditorPageProps) {
           pipeline,
           signals: payload.signals.map((entry) => entry.signal),
           colors: payload.signals.map((entry) => entry.color),
-          range: payload.range,
+          range: normalizedRange,
           layout: newLayout,
         },
       });

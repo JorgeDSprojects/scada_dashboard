@@ -283,6 +283,37 @@ function buildDashboardPayload(dashboardId: number) {
     };
   }
 
+  if (dashboardId === 7) {
+    return {
+      id: dashboardId,
+      name: "Historian empty range",
+      description: "Historian range should be validated client-side",
+      pipeline: "historian",
+      status: "published",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      widgets: [
+        {
+          id: 71,
+          dashboard_id: dashboardId,
+          name: "Historian Empty Range",
+          widget_type: "large_scale_area",
+          settings: {
+            chart_type: "large_scale_area",
+            pipeline: "historian",
+            signals: ["Hist_Only"],
+            range: {
+              from: "",
+              to: "",
+            },
+          },
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        },
+      ],
+    };
+  }
+
   return {
     id: dashboardId,
     name: "Published dashboard",
@@ -667,6 +698,39 @@ it("converts historian datetime-local range values to UTC before requesting seri
   const expectedTo = encodeURIComponent(new Date("2026-07-12T03:00").toISOString());
   expect(historianUrl).toContain(`from=${expectedFrom}`);
   expect(historianUrl).toContain(`to=${expectedTo}`);
+});
+
+it("does not query historian series when widget range from/to is empty", async () => {
+  const fetchCalls: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      fetchCalls.push(url);
+
+      if (url.includes("/api/dashboards/")) {
+        return new Response(JSON.stringify(buildDashboardPayload(7)), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ detail: "not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }),
+  );
+
+  render(<FixedViewPage dashboardId={7} />);
+
+  const widget = (await screen.findByRole("heading", { name: /historian empty range/i })).closest(
+    "article",
+  ) as HTMLElement;
+  const alert = await within(widget).findByRole("alert");
+
+  expect(alert).toHaveTextContent(/historian range requires both from and to values/i);
+  expect(fetchCalls.some((url) => url.includes("/api/historian/series"))).toBe(false);
 });
 
 it("renders distinct semantics for all five chart types in fixed view", async () => {

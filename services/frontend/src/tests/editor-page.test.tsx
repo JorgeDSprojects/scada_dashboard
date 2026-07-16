@@ -110,6 +110,23 @@ it("shows historian from/to controls when pipeline is historian", async () => {
   expect(screen.getByLabelText(/to/i)).toBeInTheDocument();
 });
 
+it("blocks historian widget launch when range from/to is empty", async () => {
+  render(<EditorPage dashboardId={7} />);
+
+  await screen.findByDisplayValue("Existing dashboard");
+
+  await userEvent.selectOptions(screen.getByLabelText(/pipeline/i), "historian");
+  await userEvent.selectOptions(screen.getByLabelText(/signal/i), "Gen_RPM");
+  await userEvent.selectOptions(screen.getByLabelText(/color/i), "navy");
+  await userEvent.click(screen.getByRole("button", { name: /add/i }));
+  await userEvent.click(screen.getByRole("button", { name: /launch widget/i }));
+
+  expect(createWidget).not.toHaveBeenCalled();
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    /historian widgets require both from and to range values/i,
+  );
+});
+
 it("shows spec chart type names in editor selector", () => {
   render(<EditorPage />);
 

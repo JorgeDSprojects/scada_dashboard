@@ -316,3 +316,34 @@ This fix wave addresses the critical and important findings from whole-branch re
 - `npm --prefix services/frontend run test -- src/tests/fixed-view.test.tsx` ✅ (12 passed)
 - `npm --prefix services/frontend run test` ✅ (29 passed)
 - `npm --prefix services/frontend run build` ✅
+
+## Final important findings fix wave (last remaining items)
+
+### 26) Important: historian empty `from/to` is now blocked and never sent as empty query values
+
+- Added editor-side validation in `services/frontend/src/pages/EditorPage.tsx`:
+  - historian widget launch now blocks when `from` or `to` is empty (trim-aware).
+  - user receives a clear message: `Historian widgets require both from and to range values.`
+  - invalid payloads are not sent to `createWidget`.
+- Added historian query normalization/validation in `services/frontend/src/hooks/useHistorianSeries.ts`:
+  - empty/invalid datetime values are rejected before fetch.
+  - invalid order (`from >= to`) is rejected client-side.
+  - no request is sent to `/api/historian/series` when range is invalid.
+- Added regression tests:
+  - `services/frontend/src/tests/editor-page.test.tsx`: blocks launch on empty historian range.
+  - `services/frontend/src/tests/fixed-view.test.tsx`: confirms no historian query is emitted for empty range and widget shows validation error.
+
+### 27) Important: Docker security baseline (non-root runtime users)
+
+- Updated service Dockerfiles to run as non-root where feasible:
+  - `services/backend/Dockerfile`: creates `app` system user/group and sets `USER app`.
+  - `services/simulator/Dockerfile`: creates `app` system user/group and sets `USER app`.
+  - `services/frontend/Dockerfile`: sets ownership to `node:node` and sets `USER node`.
+- Added repository contract regression test:
+  - `tests/repo/test_compose_contract.py::test_service_dockerfiles_drop_root_user`
+  - enforces presence of `USER` instruction and disallows root effective user.
+
+### Verification evidence for final remaining findings
+
+- `npm --prefix services/frontend run test` ✅ (31 passed)
+- `pytest services/backend/tests services/simulator/tests tests/repo -v` ✅ (30 passed)

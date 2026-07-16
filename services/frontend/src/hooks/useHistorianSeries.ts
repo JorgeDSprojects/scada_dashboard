@@ -16,10 +16,15 @@ type UseHistorianSeriesParams = {
   bucket: string;
 };
 
-function toUtcIsoString(value: string): string {
-  const parsed = new Date(value);
+function toUtcIsoString(value: string): string | null {
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = new Date(normalized);
   if (Number.isNaN(parsed.getTime())) {
-    return value;
+    return null;
   }
 
   return parsed.toISOString();
@@ -59,16 +64,34 @@ export function useHistorianSeries({ enabled, signals, from, to, bucket }: UseHi
       return;
     }
 
+    const normalizedFrom = toUtcIsoString(from);
+    const normalizedTo = toUtcIsoString(to);
+
+    if (!normalizedFrom || !normalizedTo) {
+      setSeries([]);
+      setLoading(false);
+      setError("Historian range requires both from and to values.");
+      return;
+    }
+
+    if (new Date(normalizedFrom).getTime() >= new Date(normalizedTo).getTime()) {
+      setSeries([]);
+      setLoading(false);
+      setError("Historian range must have 'from' earlier than 'to'.");
+      return;
+    }
+
     const controller = new AbortController();
     const query = new URLSearchParams({
       signals: signals.join(","),
-      from: toUtcIsoString(from),
-      to: toUtcIsoString(to),
+      from: normalizedFrom,
+      to: normalizedTo,
       bucket,
     });
 
     const loadSeries = async () => {
       setLoading(true);
+      setError(null);
 
       try {
         const response = await fetch(buildApiUrl(`/api/historian/series?${query.toString()}`), {
