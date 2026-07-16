@@ -32,7 +32,7 @@ export function ChartWidget({ title, points, connectionStatus }: ChartWidgetProp
         <p>No points available.</p>
       ) : (
         <ul aria-label={`${title} points`}>
-          {points.slice(-5).map((point, index) => (
+          {points.map((point, index) => (
             <li key={`${point.signal}-${point.ts_utc}-${index}`}>
               {`${point.signal}: ${point.value} (${formatLocalTimestamp(point.ts_utc)})`}
             </li>

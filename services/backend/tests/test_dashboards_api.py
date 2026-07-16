@@ -16,6 +16,7 @@ os.environ["DATABASE_URL"] = f"sqlite:///{DB_FILE.as_posix()}"
 os.environ.setdefault("HISTORIAN_MIN_SAMPLE_SECONDS", "300")
 
 from app.main import app
+from app.db import engine
 
 
 def _create_dashboard(client: TestClient, suffix: str) -> dict[str, object]:
@@ -259,3 +260,58 @@ def test_create_widget_accepts_legacy_chart_type_aliases_for_compatibility():
         )
 
         assert response.status_code == 201
+
+
+def test_startup_migrates_legacy_tables_missing_timestamps():
+    with engine.begin() as connection:
+        connection.exec_driver_sql("DROP TABLE IF EXISTS widgets")
+        connection.exec_driver_sql("DROP TABLE IF EXISTS dashboards")
+        connection.exec_driver_sql(
+            """
+            CREATE TABLE dashboards (
+                id INTEGER PRIMARY KEY,
+                name VARCHAR(200) NOT NULL,
+                description TEXT,
+                pipeline VARCHAR(40) NOT NULL,
+                status VARCHAR(40) NOT NULL
+            )
+            """
+        )
+        connection.exec_driver_sql(
+            """
+            CREATE TABLE widgets (
+                id INTEGER PRIMARY KEY,
+                dashboard_id INTEGER NOT NULL,
+                name VARCHAR(200) NOT NULL,
+                widget_type VARCHAR(100) NOT NULL,
+                settings JSON NOT NULL,
+                FOREIGN KEY(dashboard_id) REFERENCES dashboards(id)
+            )
+            """
+        )
+        connection.exec_driver_sql(
+            """
+            INSERT INTO dashboards (id, name, description, pipeline, status)
+            VALUES (1, 'Legacy dashboard', 'Imported from persisted volume', 'realtime', 'draft')
+            """
+        )
+
+    with TestClient(app) as client:
+        response = client.get("/api/dashboards")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body[0]["id"] == 1
+    assert "created_at" in body[0]
+    assert "updated_at" in body[0]
+
+    with engine.begin() as connection:
+        dashboard_columns = {
+            row[1] for row in connection.exec_driver_sql("PRAGMA table_info('dashboards')").fetchall()
+        }
+        widget_columns = {
+            row[1] for row in connection.exec_driver_sql("PRAGMA table_info('widgets')").fetchall()
+        }
+
+    assert {"created_at", "updated_at"}.issubset(dashboard_columns)
+    assert {"created_at", "updated_at"}.issubset(widget_columns)

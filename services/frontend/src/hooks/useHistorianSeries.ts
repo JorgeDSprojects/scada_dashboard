@@ -16,6 +16,15 @@ type UseHistorianSeriesParams = {
   bucket: string;
 };
 
+function toUtcIsoString(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return parsed.toISOString();
+}
+
 function parsePoint(entry: unknown): HistorianPoint | null {
   if (typeof entry !== "object" || entry === null) {
     return null;
@@ -53,8 +62,8 @@ export function useHistorianSeries({ enabled, signals, from, to, bucket }: UseHi
     const controller = new AbortController();
     const query = new URLSearchParams({
       signals: signals.join(","),
-      from,
-      to,
+      from: toUtcIsoString(from),
+      to: toUtcIsoString(to),
       bucket,
     });
 

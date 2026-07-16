@@ -202,3 +202,34 @@ This fix wave addresses the critical and important findings from whole-branch re
 
 - `pytest services/simulator/tests services/backend/tests tests/repo -v` ✅ (28 passed)
 - `npm --prefix services/frontend run test` ✅ (22 passed)
+
+## Latest final-review blockers fix wave
+
+### 17) Critical: startup compatibility migration for persisted Postgres volumes
+
+- Added startup compatibility migrations in `services/backend/app/db.py` and wired them in `services/backend/app/main.py`.
+- On startup, backend now executes idempotent `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for PostgreSQL timestamp columns:
+  - `dashboards.created_at`, `dashboards.updated_at`
+  - `widgets.created_at`, `widgets.updated_at`
+- Added SQLite compatibility fallback for tests/dev legacy schemas.
+- Added regression test `test_startup_migrates_legacy_tables_missing_timestamps` in `services/backend/tests/test_dashboards_api.py`.
+
+### 18) Important: realtime window is now timestamp-based 15 minutes
+
+- Removed fixed-count rendering (`slice(-5)`) from `services/frontend/src/components/widgets/ChartWidget.tsx`.
+- Added timestamp-window filtering in `services/frontend/src/pages/FixedViewPage.tsx`:
+  - realtime points are filtered to the true last 15 minutes based on point `ts_utc`.
+- Added frontend regression test in `services/frontend/src/tests/fixed-view.test.tsx` to ensure old points are excluded and in-window points are preserved.
+
+### 19) Important: datetime-local historian ranges converted to UTC before API request
+
+- Updated `services/frontend/src/hooks/useHistorianSeries.ts` to normalize `from`/`to` values with `Date(...).toISOString()` before building query params.
+- Added regression test in `services/frontend/src/tests/fixed-view.test.tsx` to assert UTC query values are sent.
+
+### Verification evidence for latest blocker wave
+
+- `pytest services/backend/tests tests/repo -v` ✅ (26 passed)
+- `npm --prefix services/frontend run test` ✅ (24 passed)
+- `docker compose up -d --build` ✅
+- `npm run test:e2e` ✅ (1 passed)
+- `docker compose down` ✅

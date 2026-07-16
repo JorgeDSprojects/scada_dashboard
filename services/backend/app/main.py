@@ -1,7 +1,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from app.api import dashboards, historian, widgets
-from app.db import Base, SessionLocal, engine
+from app.db import Base, SessionLocal, engine, run_startup_compat_migrations
 from app.historian.seed import seed_if_empty
 from app.realtime.manager import RealtimeManager
 
@@ -12,6 +12,7 @@ manager = RealtimeManager()
 @app.on_event("startup")
 def create_tables() -> None:
     Base.metadata.create_all(bind=engine)
+    run_startup_compat_migrations()
     with SessionLocal() as session:
         seed_if_empty(session)
 

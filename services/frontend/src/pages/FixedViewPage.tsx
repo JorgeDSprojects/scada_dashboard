@@ -32,6 +32,21 @@ type DashboardWithWidgets = Dashboard & {
 const DEFAULT_FROM = "2026-07-12T00:00:00Z";
 const DEFAULT_TO = "2026-07-12T01:00:00Z";
 const DEFAULT_BUCKET = "1m";
+const REALTIME_WINDOW_MS = 15 * 60 * 1000;
+
+function filterRealtimeWindowByTimestamp<T extends { ts_utc: string }>(points: T[]): T[] {
+  const withEpoch = points
+    .map((point) => ({ point, epoch: new Date(point.ts_utc).getTime() }))
+    .filter((entry) => Number.isFinite(entry.epoch));
+
+  if (withEpoch.length === 0) {
+    return [];
+  }
+
+  const latestTs = Math.max(...withEpoch.map((entry) => entry.epoch));
+  const threshold = latestTs - REALTIME_WINDOW_MS;
+  return withEpoch.filter((entry) => entry.epoch >= threshold).map((entry) => entry.point);
+}
 
 function normalizeDashboardId(value: number | undefined): number | null {
   if (typeof value !== "number" || Number.isNaN(value) || value <= 0) {
@@ -210,7 +225,9 @@ export function FixedViewPage({ dashboardId }: FixedViewPageProps) {
       <div>
         {parsedWidgets.length === 0 && !loadingDashboard ? <p>No widgets available.</p> : null}
         {parsedWidgets.map(({ widget, settings }) => {
-          const relatedRealtime = realtimeEvents.filter((event) => settings.signals.includes(event.signal));
+          const relatedRealtime = filterRealtimeWindowByTimestamp(
+            realtimeEvents.filter((event) => settings.signals.includes(event.signal)),
+          );
           const relatedHistorian = historianSeries.filter((entry) => settings.signals.includes(entry.signal));
           const values = settings.pipeline === "historian" ? relatedHistorian : relatedRealtime;
           const latestValue = values.length > 0 ? values[values.length - 1].value : null;

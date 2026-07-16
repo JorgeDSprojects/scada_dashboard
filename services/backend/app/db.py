@@ -1,7 +1,7 @@
 import os
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 
@@ -31,6 +31,68 @@ connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite")
 engine = create_engine(DATABASE_URL, future=True, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+
+def _ensure_sqlite_timestamp_columns() -> None:
+    sqlite_fallback = "'1970-01-01 00:00:00+00:00'"
+    statements = (
+        (
+            "dashboards",
+            "created_at",
+            f"ALTER TABLE dashboards ADD COLUMN created_at DATETIME NOT NULL DEFAULT {sqlite_fallback}",
+        ),
+        (
+            "dashboards",
+            "updated_at",
+            f"ALTER TABLE dashboards ADD COLUMN updated_at DATETIME NOT NULL DEFAULT {sqlite_fallback}",
+        ),
+        (
+            "widgets",
+            "created_at",
+            f"ALTER TABLE widgets ADD COLUMN created_at DATETIME NOT NULL DEFAULT {sqlite_fallback}",
+        ),
+        (
+            "widgets",
+            "updated_at",
+            f"ALTER TABLE widgets ADD COLUMN updated_at DATETIME NOT NULL DEFAULT {sqlite_fallback}",
+        ),
+    )
+
+    with engine.begin() as connection:
+        for table_name, column_name, statement in statements:
+            table_exists = inspect(connection).has_table(table_name)
+            if not table_exists:
+                continue
+
+            existing_columns = {column["name"] for column in inspect(connection).get_columns(table_name)}
+            if column_name not in existing_columns:
+                connection.exec_driver_sql(statement)
+
+
+def run_startup_compat_migrations() -> None:
+    dialect = engine.dialect.name
+    if dialect == "postgresql":
+        with engine.begin() as connection:
+            connection.exec_driver_sql(
+                "ALTER TABLE IF EXISTS dashboards "
+                "ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"
+            )
+            connection.exec_driver_sql(
+                "ALTER TABLE IF EXISTS dashboards "
+                "ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"
+            )
+            connection.exec_driver_sql(
+                "ALTER TABLE IF EXISTS widgets "
+                "ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"
+            )
+            connection.exec_driver_sql(
+                "ALTER TABLE IF EXISTS widgets "
+                "ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()"
+            )
+        return
+
+    if dialect == "sqlite":
+        _ensure_sqlite_timestamp_columns()
 
 
 def get_db() -> Generator[Session, None, None]:
