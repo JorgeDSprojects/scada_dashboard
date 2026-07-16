@@ -1,6 +1,7 @@
 import os
 import sys
 import tempfile
+from datetime import timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -14,6 +15,7 @@ DB_FILE = Path(tempfile.gettempdir()) / f"scada_backend_test_{uuid4().hex}.db"
 os.environ["DATABASE_URL"] = f"sqlite:///{DB_FILE.as_posix()}"
 
 from app.main import app
+from app.historian.seed import _seed_range
 
 INVALID_BUCKET_DETAIL = (
     "Invalid bucket. Use format '<positive integer><s|m|h>', e.g. '1m'."
@@ -21,10 +23,20 @@ INVALID_BUCKET_DETAIL = (
 
 
 def _series_params(*, bucket: str) -> dict[str, str]:
+    start_utc, end_utc = _seed_range()
+    to_utc = end_utc - timedelta(minutes=1)
+    if to_utc <= start_utc:
+        to_utc = end_utc
+
+    from_utc = max(start_utc, to_utc - timedelta(hours=1))
+    if from_utc >= to_utc:
+        to_utc = start_utc + timedelta(minutes=1)
+        from_utc = start_utc
+
     return {
         "signals": "Gen_RPM",
-        "from": "2026-07-12T00:00:00Z",
-        "to": "2026-07-12T01:00:00Z",
+        "from": from_utc.isoformat().replace("+00:00", "Z"),
+        "to": to_utc.isoformat().replace("+00:00", "Z"),
         "bucket": bucket,
     }
 
