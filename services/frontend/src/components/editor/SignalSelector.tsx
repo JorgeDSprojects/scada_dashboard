@@ -1,6 +1,13 @@
 import React from "react";
 
-const DEFAULT_SIGNALS = ["Gen_RPM", "Windspeed", "Prod_pwr", "Gear_oil_temp"];
+const DEFAULT_SIGNALS = [
+  "Gen_RPM",
+  "hydrolic_temp",
+  "Gear_oil_temp",
+  "Blades_PitchAngle",
+  "Windspeed",
+  "Prod_pwr",
+];
 const DEFAULT_COLORS = ["navy", "red", "green", "yellow", "black"];
 
 type SignalSelectorProps = {

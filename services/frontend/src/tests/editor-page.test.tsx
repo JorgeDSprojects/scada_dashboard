@@ -100,6 +100,24 @@ it("shows historian from/to controls when pipeline is historian", async () => {
   expect(screen.getByLabelText(/to/i)).toBeInTheDocument();
 });
 
+it("shows the full six-signal catalog in the signal selector", async () => {
+  render(<EditorPage />);
+
+  const signalSelect = screen.getByLabelText(/signal/i);
+  const signalOptions = Array.from(signalSelect.querySelectorAll("option")).map(
+    (option) => option.textContent,
+  );
+
+  expect(signalOptions).toEqual([
+    "Gen_RPM",
+    "hydrolic_temp",
+    "Gear_oil_temp",
+    "Blades_PitchAngle",
+    "Windspeed",
+    "Prod_pwr",
+  ]);
+});
+
 it("launches widget and displays it in the widget grid", async () => {
   render(<EditorPage dashboardId={7} />);
 

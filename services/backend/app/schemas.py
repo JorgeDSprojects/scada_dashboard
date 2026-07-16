@@ -28,7 +28,7 @@ class WidgetRead(WidgetBase):
 
 class DashboardBase(BaseModel):
     name: str
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=500)
     pipeline: Literal["realtime", "historian"]
     status: Literal["draft", "published"]
 
@@ -39,7 +39,7 @@ class DashboardCreate(DashboardBase):
 
 class DashboardUpdate(BaseModel):
     name: str | None = None
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=500)
     pipeline: Literal["realtime", "historian"] | None = None
     status: Literal["draft", "published"] | None = None
 

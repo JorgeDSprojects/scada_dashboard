@@ -22,14 +22,37 @@ DEFAULT_SIGNAL_CATALOG: list[dict[str, Any]] = [
 ]
 
 
+def _catalog_candidates_from_seed_path(seed_path: Path) -> list[Path]:
+    resolved_seed_path = seed_path.resolve()
+    search_roots = [resolved_seed_path.parent, *resolved_seed_path.parents]
+    relative_candidates = (
+        Path("simulator_app") / "config" / "signals.json",
+        Path("..") / "simulator" / "simulator_app" / "config" / "signals.json",
+        Path("services") / "simulator" / "simulator_app" / "config" / "signals.json",
+        Path("..") / "simulator" / "app" / "config" / "signals.json",
+        Path("services") / "simulator" / "app" / "config" / "signals.json",
+    )
+
+    candidates: list[Path] = []
+    seen: set[Path] = set()
+    for root in search_roots:
+        for relative_path in relative_candidates:
+            candidate = (root / relative_path).resolve()
+            if candidate in seen:
+                continue
+            seen.add(candidate)
+            candidates.append(candidate)
+
+    return candidates
+
+
 def _catalog_candidates() -> list[Path]:
     env_path = os.getenv("SIGNALS_CATALOG_PATH")
     candidates: list[Path] = []
     if env_path:
         candidates.append(Path(env_path))
 
-    repo_root = Path(__file__).resolve().parents[4]
-    candidates.append(repo_root / "services" / "simulator" / "app" / "config" / "signals.json")
+    candidates.extend(_catalog_candidates_from_seed_path(Path(__file__)))
     return candidates
 
 

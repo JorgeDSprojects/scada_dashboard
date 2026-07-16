@@ -136,6 +136,33 @@ def test_delete_widget_contract():
         assert updated.status_code == 404
 
 
+def test_create_dashboard_rejects_description_longer_than_500_chars():
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/dashboards",
+            json={
+                "name": "Long description dashboard",
+                "description": "x" * 501,
+                "pipeline": "realtime",
+                "status": "draft",
+            },
+        )
+
+    assert response.status_code == 422
+
+
+def test_update_dashboard_rejects_description_longer_than_500_chars():
+    with TestClient(app) as client:
+        dashboard = _create_dashboard(client, "description-limit")
+
+        response = client.put(
+            f"/api/dashboards/{dashboard['id']}",
+            json={"description": "x" * 501},
+        )
+
+    assert response.status_code == 422
+
+
 def test_create_widget_rejects_invalid_pipeline_chart_type_combination():
     with TestClient(app) as client:
         dashboard = _create_dashboard(client, "invalid-chart")
