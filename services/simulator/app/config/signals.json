@@ -1,0 +1,46 @@
+{
+  "signals": [
+    {
+      "name": "Gen_RPM",
+      "min": 0,
+      "max": 2000,
+      "frequency_seconds": 0.5,
+      "waveform": "triangular"
+    },
+    {
+      "name": "hydrolic_temp",
+      "min": -15,
+      "max": 60,
+      "frequency_seconds": 1,
+      "waveform": "sine"
+    },
+    {
+      "name": "Gear_oil_temp",
+      "min": -20,
+      "max": 40,
+      "frequency_seconds": 1,
+      "waveform": "cosine"
+    },
+    {
+      "name": "Blades_PitchAngle",
+      "min": 0,
+      "max": 360,
+      "frequency_seconds": 2,
+      "waveform": "pulse"
+    },
+    {
+      "name": "Windspeed",
+      "min": 0,
+      "max": 50,
+      "frequency_seconds": 1,
+      "waveform": "square"
+    },
+    {
+      "name": "Prod_pwr",
+      "min": 0,
+      "max": 500,
+      "frequency_seconds": 5,
+      "waveform": "triangular"
+    }
+  ]
+}
