@@ -24,7 +24,14 @@ for arg in "$@"; do
 done
 
 if [[ "$reset" == "true" ]]; then
-  docker compose down --volumes --remove-orphans
+  docker compose up -d postgres
+
+  reset_cmd=(docker compose run --rm)
+  if [[ "$build" == "true" ]]; then
+    reset_cmd+=(--build)
+  fi
+  reset_cmd+=(backend python -m app.historian.seed --reset)
+  "${reset_cmd[@]}"
 fi
 
 cmd=(docker compose up)

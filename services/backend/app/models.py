@@ -1,4 +1,6 @@
-from sqlalchemy import JSON, ForeignKey, Integer, String, Text
+from datetime import datetime
+
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -27,3 +29,12 @@ class Widget(Base):
     settings: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
     dashboard: Mapped[Dashboard] = relationship(back_populates="widgets")
+
+
+class HistorianSample(Base):
+    __tablename__ = "historian_samples"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    signal_name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    ts_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    value: Mapped[float] = mapped_column(Float, nullable=False)
