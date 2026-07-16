@@ -9,3 +9,11 @@ export type Dashboard = {
   pipeline: DashboardPipeline;
   status: DashboardStatus;
 };
+
+export type Widget = {
+  id: number;
+  dashboard_id: number;
+  name: string;
+  widget_type: string;
+  settings: Record<string, unknown>;
+};

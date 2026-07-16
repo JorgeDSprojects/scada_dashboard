@@ -1,4 +1,4 @@
-import type { Dashboard } from "../types/dashboard";
+import type { Dashboard, DashboardStatus, Widget } from "../types/dashboard";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
 
@@ -28,4 +28,43 @@ export async function deleteDashboard(dashboardId: number): Promise<void> {
     method: "DELETE",
   });
   await parseResponse<void>(response);
+}
+
+export async function updateDashboard(
+  dashboardId: number,
+  payload: {
+    name?: string;
+    description?: string;
+    pipeline?: Dashboard["pipeline"];
+    status?: DashboardStatus;
+  },
+): Promise<Dashboard> {
+  const response = await fetch(buildApiUrl(`/api/dashboards/${dashboardId}`), {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseResponse<Dashboard>(response);
+}
+
+export async function createWidget(
+  dashboardId: number,
+  payload: {
+    name: string;
+    widget_type: string;
+    settings: Record<string, unknown>;
+  },
+): Promise<Widget> {
+  const response = await fetch(buildApiUrl(`/api/dashboards/${dashboardId}/widgets`), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseResponse<Widget>(response);
 }
