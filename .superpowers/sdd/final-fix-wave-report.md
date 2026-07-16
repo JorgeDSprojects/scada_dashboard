@@ -233,3 +233,48 @@ This fix wave addresses the critical and important findings from whole-branch re
 - `docker compose up -d --build` ✅
 - `npm run test:e2e` ✅ (1 passed)
 - `docker compose down` ✅
+
+## Latest branch-review findings fix wave
+
+### 20) Critical: realtime buffering now retains a true timestamp window (15 minutes)
+
+- Updated `services/frontend/src/hooks/useRealtimeStream.ts` to stop using fixed-count truncation (`slice(-99)`).
+- Added timestamp-window retention logic in the hook:
+  - keeps events where `ts_utc` is within 15 minutes of the latest valid event timestamp.
+  - drops out-of-window events regardless of event count.
+- Added regression coverage in `services/frontend/src/tests/use-realtime-stream.test.tsx`:
+  - verifies >100 in-window events are retained.
+  - verifies older events are pruned when a newer timestamp advances the window.
+
+### 21) Important: historian errors are scoped to historian widget rendering
+
+- Removed page-level historian error banner from `services/frontend/src/pages/FixedViewPage.tsx`.
+- Added per-widget error rendering (`role="alert"`) in:
+  - `services/frontend/src/components/widgets/ChartWidget.tsx`
+  - `services/frontend/src/components/widgets/GaugeWidget.tsx`
+- Fixed-view now continues rendering dashboard + realtime widgets even when historian fetch fails.
+- Added regression test in `services/frontend/src/tests/fixed-view.test.tsx` to assert error is shown inside the historian widget, not as global page error state.
+
+### 22) Important: realtime WS status/connect only when realtime is actually required
+
+- Updated `services/frontend/src/pages/FixedViewPage.tsx` to derive realtime need from parsed widget pipelines.
+- WebSocket is now opened only when:
+  - dashboard is published, and
+  - at least one widget uses `realtime` pipeline.
+- Realtime status text is rendered only when realtime widgets exist.
+- Added historian-only regression test in `services/frontend/src/tests/fixed-view.test.tsx` to ensure no WS connection and no realtime status line.
+
+### 23) Important: fixed view now distinguishes all 5 chart types with MVP semantics
+
+- Expanded widget rendering semantics:
+  - `smoothed_line`: displays smoothed value trend per point.
+  - `stacked_line`: displays per-timestamp stacked totals across signals.
+  - `simple_gauge`: classic numeric gauge output.
+  - `temperature_gauge`: temperature-oriented output with qualitative band (`low`/`normal`/`high`).
+  - `large_scale_area`: area summary (`min/max/avg`) plus sample list.
+- Added explicit mode labeling (`Mode: ...`) to each widget rendering path.
+- Added regression test in `services/frontend/src/tests/fixed-view.test.tsx` asserting all five chart modes are distinguishable in fixed view.
+
+### Verification evidence for this wave
+
+- `npm --prefix services/frontend run test` ✅ (28 passed)

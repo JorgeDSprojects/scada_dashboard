@@ -32,21 +32,6 @@ type DashboardWithWidgets = Dashboard & {
 const DEFAULT_FROM = "2026-07-12T00:00:00Z";
 const DEFAULT_TO = "2026-07-12T01:00:00Z";
 const DEFAULT_BUCKET = "1m";
-const REALTIME_WINDOW_MS = 15 * 60 * 1000;
-
-function filterRealtimeWindowByTimestamp<T extends { ts_utc: string }>(points: T[]): T[] {
-  const withEpoch = points
-    .map((point) => ({ point, epoch: new Date(point.ts_utc).getTime() }))
-    .filter((entry) => Number.isFinite(entry.epoch));
-
-  if (withEpoch.length === 0) {
-    return [];
-  }
-
-  const latestTs = Math.max(...withEpoch.map((entry) => entry.epoch));
-  const threshold = latestTs - REALTIME_WINDOW_MS;
-  return withEpoch.filter((entry) => entry.epoch >= threshold).map((entry) => entry.point);
-}
 
 function normalizeDashboardId(value: number | undefined): number | null {
   if (typeof value !== "number" || Number.isNaN(value) || value <= 0) {
@@ -87,8 +72,6 @@ export function FixedViewPage({ dashboardId }: FixedViewPageProps) {
 
   const resolvedDashboardId = normalizeDashboardId(dashboardId);
   const isPublished = dashboard?.status === "published";
-  const realtimeDashboardId = resolvedDashboardId !== null && isPublished ? resolvedDashboardId : null;
-  const { status: realtimeStatus, events: realtimeEvents } = useRealtimeStream(realtimeDashboardId);
 
   React.useEffect(() => {
     if (resolvedDashboardId === null) {
@@ -146,6 +129,12 @@ export function FixedViewPage({ dashboardId }: FixedViewPageProps) {
       settings: parseWidgetSettings(widget, fallbackPipeline),
     }));
   }, [dashboard]);
+
+  const hasRealtimeWidgets =
+    isPublished && parsedWidgets.some(({ settings }) => settings.pipeline === "realtime");
+
+  const realtimeDashboardId = resolvedDashboardId !== null && hasRealtimeWidgets ? resolvedDashboardId : null;
+  const { status: realtimeStatus, events: realtimeEvents } = useRealtimeStream(realtimeDashboardId);
 
   const historianSignals = React.useMemo(() => {
     const uniqueSignals = new Set<string>();
@@ -217,35 +206,42 @@ export function FixedViewPage({ dashboardId }: FixedViewPageProps) {
       <h1>Fixed dashboard</h1>
 
       <p>{dashboard.name}</p>
-      <p>{`Realtime status: ${realtimeStatus}`}</p>
+      {hasRealtimeWidgets ? <p>{`Realtime status: ${realtimeStatus}`}</p> : null}
 
       {loadingHistorian ? <p>Loading historian data...</p> : null}
-      {historianError ? <p role="alert">{historianError}</p> : null}
 
       <div>
         {parsedWidgets.length === 0 && !loadingDashboard ? <p>No widgets available.</p> : null}
         {parsedWidgets.map(({ widget, settings }) => {
-          const relatedRealtime = filterRealtimeWindowByTimestamp(
-            realtimeEvents.filter((event) => settings.signals.includes(event.signal)),
-          );
+          const relatedRealtime = realtimeEvents.filter((event) => settings.signals.includes(event.signal));
           const relatedHistorian = historianSeries.filter((entry) => settings.signals.includes(entry.signal));
           const values = settings.pipeline === "historian" ? relatedHistorian : relatedRealtime;
           const latestValue = values.length > 0 ? values[values.length - 1].value : null;
           const connectionStatus = settings.pipeline === "realtime" ? realtimeStatus : undefined;
+          const widgetError = settings.pipeline === "historian" ? historianError : null;
 
           if (settings.chartType === "simple_gauge" || settings.chartType === "temperature_gauge") {
             return (
               <GaugeWidget
                 key={widget.id}
                 title={widget.name}
+                chartType={settings.chartType}
                 value={latestValue}
                 connectionStatus={connectionStatus}
+                error={widgetError}
               />
             );
           }
 
           return (
-            <ChartWidget key={widget.id} title={widget.name} points={values} connectionStatus={connectionStatus} />
+            <ChartWidget
+              key={widget.id}
+              title={widget.name}
+              chartType={settings.chartType}
+              points={values}
+              connectionStatus={connectionStatus}
+              error={widgetError}
+            />
           );
         })}
       </div>

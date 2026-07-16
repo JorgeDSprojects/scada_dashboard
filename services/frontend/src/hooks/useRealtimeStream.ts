@@ -12,6 +12,21 @@ export type RealtimeEvent = {
 
 const BASE_RECONNECT_DELAY_MS = 1000;
 const MAX_RECONNECT_DELAY_MS = 30000;
+const REALTIME_WINDOW_MS = 15 * 60 * 1000;
+
+function retainLastFifteenMinutes(events: RealtimeEvent[]): RealtimeEvent[] {
+  const withEpoch = events
+    .map((event) => ({ event, epoch: new Date(event.ts_utc).getTime() }))
+    .filter((entry) => Number.isFinite(entry.epoch));
+
+  if (withEpoch.length === 0) {
+    return [];
+  }
+
+  const latestTimestamp = Math.max(...withEpoch.map((entry) => entry.epoch));
+  const threshold = latestTimestamp - REALTIME_WINDOW_MS;
+  return withEpoch.filter((entry) => entry.epoch >= threshold).map((entry) => entry.event);
+}
 
 function parseEvent(payload: unknown): RealtimeEvent | null {
   if (typeof payload !== "object" || payload === null) {
@@ -73,7 +88,7 @@ export function useRealtimeStream(dashboardId: number | null) {
         try {
           const parsed = parseEvent(JSON.parse(event.data));
           if (parsed) {
-            setEvents((previous) => [...previous.slice(-99), parsed]);
+            setEvents((previous) => retainLastFifteenMinutes([...previous, parsed]));
           }
         } catch {
           return;

@@ -4,16 +4,31 @@ import type { RealtimeConnectionStatus } from "../../hooks/useRealtimeStream";
 
 type GaugeWidgetProps = {
   title: string;
+  chartType: string;
   value: number | null;
   connectionStatus?: RealtimeConnectionStatus;
+  error?: string | null;
 };
 
-export function GaugeWidget({ title, value, connectionStatus }: GaugeWidgetProps) {
+export function GaugeWidget({ title, chartType, value, connectionStatus, error }: GaugeWidgetProps) {
+  const modeLabel = chartType === "temperature_gauge" ? "Temperature gauge" : "Simple gauge";
+
+  const temperatureBand =
+    value === null ? null : value >= 80 ? "high" : value <= 40 ? "low" : "normal";
+
+  const valueText =
+    value === null
+      ? "No value yet."
+      : chartType === "temperature_gauge"
+        ? `${value.toFixed(2)} C (${temperatureBand})`
+        : value.toFixed(2);
+
   return (
     <article>
       <h3>{title}</h3>
+      <p>{`Mode: ${modeLabel}`}</p>
       {connectionStatus ? <p>{`Connection: ${connectionStatus}`}</p> : null}
-      <p>{value === null ? "No value yet." : value.toFixed(2)}</p>
+      {error ? <p role="alert">{error}</p> : <p>{valueText}</p>}
     </article>
   );
 }

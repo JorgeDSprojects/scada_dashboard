@@ -32,6 +32,234 @@ function sendRealtimeEvent(socket: MockWebSocket, payload: { signal: string; val
   );
 }
 
+function buildDashboardPayload(dashboardId: number) {
+  if (dashboardId === 2) {
+    return {
+      id: dashboardId,
+      name: "Draft dashboard",
+      description: "Read-only dashboard",
+      pipeline: "realtime",
+      status: "draft",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      widgets: [],
+    };
+  }
+
+  if (dashboardId === 3) {
+    return {
+      id: dashboardId,
+      name: "Historian only dashboard",
+      description: "No realtime widgets",
+      pipeline: "historian",
+      status: "published",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      widgets: [
+        {
+          id: 31,
+          dashboard_id: dashboardId,
+          name: "Historian Only",
+          widget_type: "large_scale_area",
+          settings: {
+            chart_type: "large_scale_area",
+            pipeline: "historian",
+            signals: ["Hist_Only"],
+            range: {
+              from: "2026-07-12T00:00:00Z",
+              to: "2026-07-12T01:00:00Z",
+            },
+          },
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        },
+      ],
+    };
+  }
+
+  if (dashboardId === 4) {
+    return {
+      id: dashboardId,
+      name: "Mixed with historian error",
+      description: "Historian should fail without blocking realtime",
+      pipeline: "realtime",
+      status: "published",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      widgets: [
+        {
+          id: 41,
+          dashboard_id: dashboardId,
+          name: "Realtime RPM",
+          widget_type: "simple_gauge",
+          settings: {
+            chart_type: "simple_gauge",
+            pipeline: "realtime",
+            signals: ["Gen_RPM"],
+          },
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        },
+        {
+          id: 42,
+          dashboard_id: dashboardId,
+          name: "Historian Faulty",
+          widget_type: "large_scale_area",
+          settings: {
+            chart_type: "large_scale_area",
+            pipeline: "historian",
+            signals: ["Hist_Fail"],
+            range: {
+              from: "2026-07-12T00:00:00Z",
+              to: "2026-07-12T01:00:00Z",
+            },
+          },
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        },
+      ],
+    };
+  }
+
+  if (dashboardId === 5) {
+    return {
+      id: dashboardId,
+      name: "All chart types",
+      description: "Covers all chart rendering semantics",
+      pipeline: "realtime",
+      status: "published",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      widgets: [
+        {
+          id: 51,
+          dashboard_id: dashboardId,
+          name: "Smoothed line",
+          widget_type: "smoothed_line",
+          settings: {
+            chart_type: "smoothed_line",
+            pipeline: "realtime",
+            signals: ["Gen_Power"],
+          },
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        },
+        {
+          id: 52,
+          dashboard_id: dashboardId,
+          name: "Stacked line",
+          widget_type: "stacked_line",
+          settings: {
+            chart_type: "stacked_line",
+            pipeline: "realtime",
+            signals: ["Gen_Power", "Gen_RPM"],
+          },
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        },
+        {
+          id: 53,
+          dashboard_id: dashboardId,
+          name: "Simple gauge",
+          widget_type: "simple_gauge",
+          settings: {
+            chart_type: "simple_gauge",
+            pipeline: "realtime",
+            signals: ["Gen_RPM"],
+          },
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        },
+        {
+          id: 54,
+          dashboard_id: dashboardId,
+          name: "Temperature gauge",
+          widget_type: "temperature_gauge",
+          settings: {
+            chart_type: "temperature_gauge",
+            pipeline: "realtime",
+            signals: ["Temp_C"],
+          },
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        },
+        {
+          id: 55,
+          dashboard_id: dashboardId,
+          name: "Large scale area",
+          widget_type: "large_scale_area",
+          settings: {
+            chart_type: "large_scale_area",
+            pipeline: "historian",
+            signals: ["Hist_Area"],
+            range: {
+              from: "2026-07-12T00:00:00Z",
+              to: "2026-07-12T01:00:00Z",
+            },
+          },
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        },
+      ],
+    };
+  }
+
+  return {
+    id: dashboardId,
+    name: "Published dashboard",
+    description: "Read-only dashboard",
+    pipeline: "realtime",
+    status: "published",
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+    widgets: [
+      {
+        id: 11,
+        dashboard_id: dashboardId,
+        name: "Realtime RPM",
+        widget_type: "gauge",
+        settings: {
+          chart_type: "gauge",
+          pipeline: "realtime",
+          signals: ["Gen_RPM"],
+        },
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      },
+      {
+        id: 13,
+        dashboard_id: dashboardId,
+        name: "Realtime Power",
+        widget_type: "smoothed_line",
+        settings: {
+          chart_type: "smoothed_line",
+          pipeline: "realtime",
+          signals: ["Gen_Power"],
+        },
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      },
+      {
+        id: 12,
+        dashboard_id: dashboardId,
+        name: "Historian RPM",
+        widget_type: "large_scale_area",
+        settings: {
+          chart_type: "large_scale_area",
+          pipeline: "historian",
+          signals: ["Gen_RPM"],
+          range: {
+            from: "2026-07-12T00:00:00Z",
+            to: "2026-07-12T01:00:00Z",
+          },
+        },
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      },
+    ],
+  };
+}
+
 beforeEach(() => {
   MockWebSocket.instances = [];
   vi.stubGlobal("WebSocket", MockWebSocket);
@@ -43,68 +271,40 @@ beforeEach(() => {
       if (url.includes("/api/dashboards/")) {
         const dashboardIdMatch = url.match(/\/api\/dashboards\/(\d+)/);
         const dashboardId = dashboardIdMatch ? Number(dashboardIdMatch[1]) : 1;
-        const status = dashboardId === 2 ? "draft" : "published";
-
-        return new Response(
-          JSON.stringify({
-            id: dashboardId,
-            name: dashboardId === 2 ? "Draft dashboard" : "Published dashboard",
-            description: "Read-only dashboard",
-            pipeline: "realtime",
-            status,
-            created_at: "2026-01-01T00:00:00Z",
-            updated_at: "2026-01-01T00:00:00Z",
-            widgets: [
-              {
-                id: 11,
-                dashboard_id: dashboardId,
-                name: "Realtime RPM",
-                widget_type: "gauge",
-                settings: {
-                  chart_type: "gauge",
-                  pipeline: "realtime",
-                  signals: ["Gen_RPM"],
-                },
-                created_at: "2026-01-01T00:00:00Z",
-                updated_at: "2026-01-01T00:00:00Z",
-              },
-              {
-                id: 13,
-                dashboard_id: dashboardId,
-                name: "Realtime Power",
-                widget_type: "smoothed_line",
-                settings: {
-                  chart_type: "smoothed_line",
-                  pipeline: "realtime",
-                  signals: ["Gen_Power"],
-                },
-                created_at: "2026-01-01T00:00:00Z",
-                updated_at: "2026-01-01T00:00:00Z",
-              },
-              {
-                id: 12,
-                dashboard_id: dashboardId,
-                name: "Historian RPM",
-                widget_type: "large_scale_area",
-                settings: {
-                  chart_type: "large_scale_area",
-                  pipeline: "historian",
-                  signals: ["Gen_RPM"],
-                  range: {
-                    from: "2026-07-12T00:00:00Z",
-                    to: "2026-07-12T01:00:00Z",
-                  },
-                },
-                created_at: "2026-01-01T00:00:00Z",
-                updated_at: "2026-01-01T00:00:00Z",
-              },
-            ],
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
-        );
+        return new Response(JSON.stringify(buildDashboardPayload(dashboardId)), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
       }
 
       if (url.includes("/api/historian/series")) {
+        if (url.includes("Hist_Fail")) {
+          return new Response(JSON.stringify({ detail: "historian unavailable" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        if (url.includes("Hist_Only")) {
+          return new Response(
+            JSON.stringify({
+              series: [{ signal: "Hist_Only", value: 780.2, ts_utc: "2026-07-12T00:20:00Z" }],
+              bucket: "1m",
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+
+        if (url.includes("Hist_Area")) {
+          return new Response(
+            JSON.stringify({
+              series: [{ signal: "Hist_Area", value: 502.7, ts_utc: "2026-07-12T00:25:00Z" }],
+              bucket: "1m",
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          );
+        }
+
         return new Response(
           JSON.stringify({
             series: [{ signal: "Gen_RPM", value: 1250.5, ts_utc: "2026-07-12T00:15:00Z" }],
@@ -173,6 +373,27 @@ it("shows publish warning and hides data for non-published dashboards", async ()
   expect(screen.queryByRole("heading", { name: /realtime rpm/i })).not.toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: /historian rpm/i })).not.toBeInTheDocument();
   expect(MockWebSocket.instances).toHaveLength(0);
+});
+
+it("does not open realtime websocket or show realtime status for historian-only dashboards", async () => {
+  render(<FixedViewPage dashboardId={3} />);
+
+  expect(await screen.findByRole("heading", { name: /historian only/i })).toBeInTheDocument();
+  expect(screen.queryByText(/realtime status:/i)).not.toBeInTheDocument();
+  expect(MockWebSocket.instances).toHaveLength(0);
+});
+
+it("scopes historian errors to the historian widget without turning the page into an error state", async () => {
+  render(<FixedViewPage dashboardId={4} />);
+
+  expect(await screen.findByRole("heading", { name: /realtime rpm/i })).toBeInTheDocument();
+  const historianHeading = screen.getByRole("heading", { name: /historian faulty/i });
+  const historianWidget = historianHeading.closest("article") as HTMLElement;
+
+  const widgetAlert = await within(historianWidget).findByRole("alert");
+  expect(widgetAlert).toHaveTextContent(/request failed with status 500/i);
+  expect(screen.getByRole("heading", { name: /fixed dashboard/i })).toBeInTheDocument();
+  expect(screen.getAllByRole("alert")).toHaveLength(1);
 });
 
 it("renders timestamps in local browser time for historian widgets", async () => {
@@ -278,6 +499,27 @@ it("converts historian datetime-local range values to UTC before requesting seri
   const expectedTo = encodeURIComponent(new Date("2026-07-12T03:00").toISOString());
   expect(historianUrl).toContain(`from=${expectedFrom}`);
   expect(historianUrl).toContain(`to=${expectedTo}`);
+});
+
+it("renders distinct semantics for all five chart types in fixed view", async () => {
+  render(<FixedViewPage dashboardId={5} />);
+
+  await waitFor(() => {
+    expect(MockWebSocket.instances.length).toBeGreaterThan(0);
+  });
+
+  const socket = MockWebSocket.instances[0];
+  socket.onopen?.(new Event("open"));
+
+  sendRealtimeEvent(socket, { signal: "Gen_Power", value: 440, ts_utc: "2026-07-12T00:10:00Z" });
+  sendRealtimeEvent(socket, { signal: "Gen_RPM", value: 1225, ts_utc: "2026-07-12T00:10:00Z" });
+  sendRealtimeEvent(socket, { signal: "Temp_C", value: 72, ts_utc: "2026-07-12T00:10:00Z" });
+
+  expect(await screen.findByText(/mode: smoothed line/i)).toBeInTheDocument();
+  expect(screen.getByText(/mode: stacked line/i)).toBeInTheDocument();
+  expect(screen.getByText(/mode: simple gauge/i)).toBeInTheDocument();
+  expect(screen.getByText(/mode: temperature gauge/i)).toBeInTheDocument();
+  expect(screen.getByText(/mode: large scale area/i)).toBeInTheDocument();
 });
 
 it("renders fixed route in app for /dashboards/:id", async () => {
