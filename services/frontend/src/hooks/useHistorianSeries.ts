@@ -1,5 +1,7 @@
 import React from "react";
 
+import { buildApiUrl } from "../api/client";
+
 export type HistorianPoint = {
   signal: string;
   value: number;
@@ -60,7 +62,7 @@ export function useHistorianSeries({ enabled, signals, from, to, bucket }: UseHi
       setLoading(true);
 
       try {
-        const response = await fetch(`/api/historian/series?${query.toString()}`, {
+        const response = await fetch(buildApiUrl(`/api/historian/series?${query.toString()}`), {
           signal: controller.signal,
         });
 

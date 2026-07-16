@@ -1,5 +1,7 @@
 import React from "react";
 
+import { buildWebSocketUrl } from "../api/client";
+
 export type RealtimeConnectionStatus = "connected" | "reconnecting" | "disconnected";
 
 export type RealtimeEvent = {
@@ -40,6 +42,9 @@ export function useRealtimeStream(dashboardId: number | null) {
       return;
     }
 
+    setStatus("reconnecting");
+    setEvents([]);
+
     let retryTimer: number | undefined;
     let socket: WebSocket | undefined;
     let active = true;
@@ -49,7 +54,7 @@ export function useRealtimeStream(dashboardId: number | null) {
         return;
       }
 
-      socket = new WebSocket(`/ws/realtime?dashboard_id=${dashboardId}`);
+      socket = new WebSocket(buildWebSocketUrl(`/ws/realtime?dashboard_id=${dashboardId}`));
       socket.onopen = () => {
         if (active) {
           setStatus("connected");

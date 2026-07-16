@@ -1,7 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import React from "react";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { App } from "../App";
@@ -33,17 +33,21 @@ beforeEach(() => {
       const url = typeof input === "string" ? input : input.toString();
 
       if (url.includes("/api/dashboards/")) {
+        const dashboardIdMatch = url.match(/\/api\/dashboards\/(\d+)/);
+        const dashboardId = dashboardIdMatch ? Number(dashboardIdMatch[1]) : 1;
+        const status = dashboardId === 2 ? "draft" : "published";
+
         return new Response(
           JSON.stringify({
-            id: 1,
-            name: "Published dashboard",
+            id: dashboardId,
+            name: dashboardId === 2 ? "Draft dashboard" : "Published dashboard",
             description: "Read-only dashboard",
             pipeline: "realtime",
-            status: "published",
+            status,
             widgets: [
               {
                 id: 11,
-                dashboard_id: 1,
+                dashboard_id: dashboardId,
                 name: "Realtime RPM",
                 widget_type: "gauge",
                 settings: {
@@ -53,8 +57,19 @@ beforeEach(() => {
                 },
               },
               {
+                id: 13,
+                dashboard_id: dashboardId,
+                name: "Realtime Power",
+                widget_type: "line",
+                settings: {
+                  chart_type: "line",
+                  pipeline: "realtime",
+                  signals: ["Gen_Power"],
+                },
+              },
+              {
                 id: 12,
-                dashboard_id: 1,
+                dashboard_id: dashboardId,
                 name: "Historian RPM",
                 widget_type: "line",
                 settings: {
@@ -109,6 +124,39 @@ it("shows reconnecting state when websocket drops", async () => {
   MockWebSocket.instances[0].close();
 
   expect(await screen.findByText(/realtime status: reconnecting/i)).toBeInTheDocument();
+});
+
+it("shows disconnected status and realtime badge only on realtime widgets", async () => {
+  render(<FixedViewPage dashboardId={1} />);
+
+  await waitFor(() => {
+    expect(MockWebSocket.instances.length).toBeGreaterThan(0);
+  });
+
+  MockWebSocket.instances[0].onopen?.(new Event("open"));
+
+  expect(await screen.findByText(/realtime status: connected/i)).toBeInTheDocument();
+  expect(screen.getAllByText(/connection: connected/i)).toHaveLength(2);
+
+  MockWebSocket.instances[0].onerror?.(new Event("error"));
+
+  expect(await screen.findByText(/realtime status: disconnected/i)).toBeInTheDocument();
+  expect(screen.getAllByText(/connection: disconnected/i)).toHaveLength(2);
+
+  const historianHeading = screen.getByRole("heading", { name: /historian rpm/i });
+  const historianWidget = historianHeading.closest("article");
+  expect(historianWidget).not.toBeNull();
+  expect(within(historianWidget as HTMLElement).queryByText(/connection:/i)).not.toBeInTheDocument();
+});
+
+it("shows publish warning and hides data for non-published dashboards", async () => {
+  render(<FixedViewPage dashboardId={2} />);
+
+  expect(await screen.findByText(/dashboard is not published yet\./i)).toBeInTheDocument();
+  expect(screen.queryByText(/realtime status:/i)).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: /realtime rpm/i })).not.toBeInTheDocument();
+  expect(screen.queryByRole("heading", { name: /historian rpm/i })).not.toBeInTheDocument();
+  expect(MockWebSocket.instances).toHaveLength(0);
 });
 
 it("renders fixed route in app for /fixed/:id", async () => {

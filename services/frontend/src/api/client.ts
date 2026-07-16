@@ -2,8 +2,19 @@ import type { Dashboard, DashboardStatus, Widget } from "../types/dashboard";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
 
-function buildApiUrl(path: string): string {
+export function buildApiUrl(path: string): string {
   return API_BASE_URL.length > 0 ? `${API_BASE_URL}${path}` : path;
+}
+
+export function buildWebSocketUrl(path: string): string {
+  const candidateUrl = buildApiUrl(path);
+  if (candidateUrl.startsWith("http://") || candidateUrl.startsWith("https://")) {
+    const url = new URL(candidateUrl);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    return url.toString();
+  }
+
+  return candidateUrl;
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {

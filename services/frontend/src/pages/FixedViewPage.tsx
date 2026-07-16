@@ -1,6 +1,7 @@
 import React from "react";
 import { useParams } from "react-router-dom";
 
+import { buildApiUrl } from "../api/client";
 import { ChartWidget } from "../components/widgets/ChartWidget";
 import { GaugeWidget } from "../components/widgets/GaugeWidget";
 import { useHistorianSeries } from "../hooks/useHistorianSeries";
@@ -69,7 +70,9 @@ export function FixedViewPage({ dashboardId }: FixedViewPageProps) {
   const [error, setError] = React.useState<string | null>(null);
 
   const resolvedDashboardId = normalizeDashboardId(dashboardId);
-  const { status: realtimeStatus, events: realtimeEvents } = useRealtimeStream(resolvedDashboardId);
+  const isPublished = dashboard?.status === "published";
+  const realtimeDashboardId = resolvedDashboardId !== null && isPublished ? resolvedDashboardId : null;
+  const { status: realtimeStatus, events: realtimeEvents } = useRealtimeStream(realtimeDashboardId);
 
   React.useEffect(() => {
     if (resolvedDashboardId === null) {
@@ -85,7 +88,7 @@ export function FixedViewPage({ dashboardId }: FixedViewPageProps) {
       setLoadingDashboard(true);
 
       try {
-        const response = await fetch(`/api/dashboards/${resolvedDashboardId}`);
+        const response = await fetch(buildApiUrl(`/api/dashboards/${resolvedDashboardId}`));
         if (!response.ok) {
           throw new Error(`Request failed with status ${response.status}`);
         }
@@ -150,26 +153,55 @@ export function FixedViewPage({ dashboardId }: FixedViewPageProps) {
   }, [parsedWidgets]);
 
   const { series: historianSeries, loading: loadingHistorian, error: historianError } = useHistorianSeries({
-    enabled: historianSignals.length > 0,
+    enabled: isPublished && historianSignals.length > 0,
     signals: historianSignals,
     from: historianRange.from,
     to: historianRange.to,
     bucket: DEFAULT_BUCKET,
   });
 
+  if (loadingDashboard) {
+    return (
+      <section>
+        <h1>Fixed dashboard</h1>
+        <p>Loading dashboard...</p>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section>
+        <h1>Fixed dashboard</h1>
+        <p role="alert">{error}</p>
+      </section>
+    );
+  }
+
+  if (!dashboard) {
+    return (
+      <section>
+        <h1>Fixed dashboard</h1>
+        <p role="alert">Dashboard not found.</p>
+      </section>
+    );
+  }
+
+  if (!isPublished) {
+    return (
+      <section>
+        <h1>Fixed dashboard</h1>
+        <p role="alert">Dashboard is not published yet.</p>
+      </section>
+    );
+  }
+
   return (
     <section>
       <h1>Fixed dashboard</h1>
 
-      {dashboard ? <p>{dashboard.name}</p> : null}
+      <p>{dashboard.name}</p>
       <p>{`Realtime status: ${realtimeStatus}`}</p>
-
-      {loadingDashboard ? <p>Loading dashboard...</p> : null}
-      {error ? <p role="alert">{error}</p> : null}
-
-      {dashboard && dashboard.status !== "published" ? (
-        <p role="alert">Dashboard is not published yet.</p>
-      ) : null}
 
       {loadingHistorian ? <p>Loading historian data...</p> : null}
       {historianError ? <p role="alert">{historianError}</p> : null}
