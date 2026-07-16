@@ -42,9 +42,11 @@ afterEach(() => {
 it("renders dashboards table columns", async () => {
   render(<MainPage />);
 
-  expect(await screen.findByText("Name")).toBeInTheDocument();
-  expect(screen.getByText("Pipeline")).toBeInTheDocument();
-  expect(screen.getByText("Status")).toBeInTheDocument();
+  expect(await screen.findByRole("columnheader", { name: "Name" })).toBeInTheDocument();
+  expect(screen.getByRole("columnheader", { name: "Description" })).toBeInTheDocument();
+  expect(screen.getByRole("columnheader", { name: "Pipeline" })).toBeInTheDocument();
+  expect(screen.getByRole("columnheader", { name: "Status" })).toBeInTheDocument();
+  expect(screen.getByRole("columnheader", { name: "Actions" })).toBeInTheDocument();
 });
 
 it("renders dashboard rows and expected actions", async () => {

@@ -1,6 +1,10 @@
 import type { Dashboard } from "../types/dashboard";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/+$/, "");
+
+function buildApiUrl(path: string): string {
+  return API_BASE_URL.length > 0 ? `${API_BASE_URL}${path}` : path;
+}
 
 async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -15,12 +19,12 @@ async function parseResponse<T>(response: Response): Promise<T> {
 }
 
 export async function listDashboards(): Promise<Dashboard[]> {
-  const response = await fetch(`${API_BASE_URL}/api/dashboards`);
+  const response = await fetch(buildApiUrl("/api/dashboards"));
   return parseResponse<Dashboard[]>(response);
 }
 
 export async function deleteDashboard(dashboardId: number): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/dashboards/${dashboardId}`, {
+  const response = await fetch(buildApiUrl(`/api/dashboards/${dashboardId}`), {
     method: "DELETE",
   });
   await parseResponse<void>(response);
